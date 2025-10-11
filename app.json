@@ -12,9 +12,12 @@
       "bundleIdentifier": "com.anonymous.eventconnectmobile"
     },
     "android": {
+<<<<<<< HEAD
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE"
       },
+=======
+>>>>>>> e639d3d (feat(notifications-client): integrate push notifications)
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.eventconnectmobile",
