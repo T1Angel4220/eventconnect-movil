@@ -5,7 +5,7 @@
 // Para encontrar tu IP: ipconfig en Windows, ifconfig en Mac/Linux
 export const API_BASE_URL = __DEV__ 
   ? 'http://10.79.27.186:3001/api'  // Cambia esta IP por la tuya
-  : 'http://10.79.27.186:3001/api';
+  : 'https://tu-api-produccion.com/api'; // URL de producción cuando despliegues
 
 // Configuración de timeouts
 export const API_TIMEOUT = 10000; // 10 segundos

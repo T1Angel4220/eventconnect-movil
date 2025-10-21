@@ -111,12 +111,12 @@ export default function RegisterScreen() {
 
       if (result.success) {
         Alert.alert(
-          "¡Registro Exitoso!",
-          "Tu cuenta ha sido creada. Ya puedes iniciar sesión.",
+          "¡Bienvenido a EventConnect!",
+          "Tu cuenta ha sido creada exitosamente.",
           [
             {
-              text: "Ir a Login",
-              onPress: () => router.replace("/(auth)/login"),
+              text: "Continuar",
+              onPress: () => router.replace("/(tabs)"),
             },
           ]
         );

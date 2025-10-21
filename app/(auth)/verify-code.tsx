@@ -20,9 +20,10 @@ import { Ionicons } from "@expo/vector-icons";
  */
 export default function VerifyCodeScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ email?: string }>();
+  const params = useLocalSearchParams<{ email?: string; userId?: string }>();
 
   const email = params.email || "";
+  const userId = params.userId ? parseInt(params.userId) : undefined;
   const [code, setCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -30,8 +31,8 @@ export default function VerifyCodeScreen() {
    * Verifica el código ingresado
    */
   const handleVerifyCode = async (verificationCode: string) => {
-    if (!email) {
-      Alert.alert("Error", "Email no proporcionado");
+    if (!email || !userId) {
+      Alert.alert("Error", "Datos de recuperación no proporcionados");
       return;
     }
 
@@ -41,16 +42,20 @@ export default function VerifyCodeScreen() {
       const result = await authService.verifyCode({
         email,
         code: verificationCode,
+        userId, // Enviar userId al backend
       });
 
-      if (result.success) {
+      if (result.success && result.resetId) {
         Alert.alert("¡Código Verificado!", "Ahora puedes cambiar tu contraseña", [
           {
             text: "Continuar",
             onPress: () => {
               router.push({
                 pathname: "/(auth)/reset-password",
-                params: { email, code: verificationCode },
+                params: {
+                  email,
+                  resetId: result.resetId!.toString(), // Pasar resetId a la siguiente pantalla
+                },
               });
             },
           },
@@ -76,8 +81,9 @@ export default function VerifyCodeScreen() {
     try {
       const result = await authService.forgotPassword({ email });
       
-      if (result.success) {
+      if (result.success && result.userId) {
         Alert.alert("¡Código Reenviado!", "Revisa tu correo electrónico");
+        setCode(""); // Limpiar código actual
       } else {
         Alert.alert("Error", result.message);
       }

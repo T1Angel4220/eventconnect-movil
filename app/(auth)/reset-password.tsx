@@ -21,10 +21,10 @@ import { Ionicons } from "@expo/vector-icons";
  */
 export default function ResetPasswordScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ email?: string; code?: string }>();
+  const params = useLocalSearchParams<{ email?: string; resetId?: string }>();
 
   const email = params.email || "";
-  const code = params.code || "";
+  const resetId = params.resetId ? parseInt(params.resetId) : undefined;
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -63,7 +63,7 @@ export default function ResetPasswordScreen() {
    * Resetea la contraseña
    */
   const handleResetPassword = async () => {
-    if (!email || !code) {
+    if (!email || !resetId) {
       Alert.alert("Error", "Datos de verificación no válidos");
       return;
     }
@@ -75,8 +75,9 @@ export default function ResetPasswordScreen() {
 
       const result = await authService.resetPassword({
         email,
-        code,
+        code: "", // No se usa pero mantenemos la interfaz
         new_password: newPassword,
+        resetId, // Enviar resetId al backend
       });
 
       if (result.success) {

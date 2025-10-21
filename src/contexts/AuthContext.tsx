@@ -143,21 +143,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       const result = await authService.register(data);
       
-      if (result.success) {
+      if (result.success && result.token && result.user) {
         console.log('✅ Registro exitoso:', data.email);
         
-        // Opcional: Auto-login después del registro
-        // if (result.user) {
-        //   const loginResult = await authService.login({
-        //     email: data.email,
-        //     password: data.password,
-        //   });
-        //   
-        //   if (loginResult.success && loginResult.token && loginResult.user) {
-        //     setToken(loginResult.token);
-        //     setUser(loginResult.user);
-        //   }
-        // }
+        // Auto-login después del registro exitoso
+        setToken(result.token);
+        setUser(result.user);
         
         return {
           success: true,
