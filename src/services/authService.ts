@@ -47,17 +47,23 @@ class AuthService {
    */
   async register(data: RegisterData): Promise<RegisterResponse> {
     try {
-      // Aseguramos que el rol sea siempre 'participant' en móvil
+      // Transformar de snake_case a camelCase para el backend
       const registerData = {
-        ...data,
+        firstName: data.first_name,  // Cambiar a camelCase
+        lastName: data.last_name,    // Cambiar a camelCase
+        email: data.email,
+        password: data.password,
         role: 'participant' as const,
       };
+
+      console.log('📤 Enviando datos de registro:', registerData);
 
       const response = await api.post<RegisterResponse>('/auth/register', registerData);
       
       return response.data;
     } catch (error) {
       const message = getErrorMessage(error);
+      console.error('❌ Error en registro:', message);
       return {
         success: false,
         message,
@@ -68,10 +74,16 @@ class AuthService {
   /**
    * Solicita recuperación de contraseña (envía código por email)
    */
-  async forgotPassword(data: ForgotPasswordData): Promise<ForgotPasswordResponse> {
+  async forgotPassword(data: ForgotPasswordData): Promise<ForgotPasswordResponse & { userId?: number }> {
     try {
-      const response = await api.post<ForgotPasswordResponse>('/auth/request-password-reset', data);
-      return response.data;
+      const response = await api.post('/auth/forgot-password', { email: data.email });
+      
+      // El backend devuelve: { message: string, userId: number }
+      return {
+        success: true,
+        message: response.data.message || 'Código enviado exitosamente',
+        userId: response.data.userId,
+      };
     } catch (error) {
       const message = getErrorMessage(error);
       return {
@@ -84,15 +96,26 @@ class AuthService {
   /**
    * Verifica el código de recuperación de 6 dígitos
    */
-  async verifyCode(data: VerifyCodeData): Promise<VerifyCodeResponse> {
+  async verifyCode(data: VerifyCodeData & { userId?: number }): Promise<VerifyCodeResponse & { resetId?: number }> {
     try {
-      const response = await api.post<VerifyCodeResponse>('/auth/verify-reset-code', data);
-      return response.data;
+      const response = await api.post('/auth/verify-code', {
+        userId: data.userId,
+        code: data.code,
+      });
+      
+      // El backend devuelve: { message: string, resetId: number }
+      return {
+        success: true,
+        message: response.data.message || 'Código verificado exitosamente',
+        isValid: true,
+        resetId: response.data.resetId,
+      };
     } catch (error) {
       const message = getErrorMessage(error);
       return {
         success: false,
         message,
+        isValid: false,
       };
     }
   }
@@ -100,10 +123,17 @@ class AuthService {
   /**
    * Restablece la contraseña con el código verificado
    */
-  async resetPassword(data: ResetPasswordData): Promise<ResetPasswordResponse> {
+  async resetPassword(data: ResetPasswordData & { resetId?: number }): Promise<ResetPasswordResponse> {
     try {
-      const response = await api.post<ResetPasswordResponse>('/auth/reset-password', data);
-      return response.data;
+      const response = await api.post('/auth/reset-password', {
+        resetId: data.resetId,
+        newPassword: data.new_password, // Backend espera 'newPassword' en camelCase
+      });
+      
+      return {
+        success: true,
+        message: response.data.message || 'Contraseña restablecida exitosamente',
+      };
     } catch (error) {
       const message = getErrorMessage(error);
       return {

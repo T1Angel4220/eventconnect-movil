@@ -52,7 +52,7 @@ export default function ForgotPasswordScreen() {
 
       const result = await authService.forgotPassword({ email: email.trim().toLowerCase() });
 
-      if (result.success) {
+      if (result.success && result.userId) {
         Alert.alert(
           "¡Código Enviado!",
           "Revisa tu correo electrónico. Hemos enviado un código de 6 dígitos.",
@@ -60,10 +60,13 @@ export default function ForgotPasswordScreen() {
             {
               text: "Continuar",
               onPress: () => {
-                // Navegar a verificación de código y pasar el email
+                // Navegar a verificación de código y pasar email y userId
                 router.push({
                   pathname: "/(auth)/verify-code",
-                  params: { email: email.trim().toLowerCase() },
+                  params: {
+                    email: email.trim().toLowerCase(),
+                    userId: result.userId!.toString(),
+                  },
                 });
               },
             },
