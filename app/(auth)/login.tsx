@@ -65,15 +65,15 @@ export default function LoginScreen() {
       const result = await login({ email, password });
 
       if (result.success) {
-        // La navegación se maneja automáticamente por el AuthContext
-        // El componente Index detectará el cambio y redirigirá
+        // Redirigir al dashboard después del login exitoso
+        router.replace("/(tabs)");
       } else {
         Alert.alert("Error", result.message);
+        setIsLoading(false);
       }
     } catch (error) {
       Alert.alert("Error", "Ocurrió un error inesperado");
       console.error("Error en login:", error);
-    } finally {
       setIsLoading(false);
     }
   };
