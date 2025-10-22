@@ -283,6 +283,7 @@ const createStyles = (isDark: boolean) => {
       flex: 1,
     },
     content: {
+      flexGrow: 1,
       paddingBottom: IOS_SPACING.xxxl,
     },
     header: {
@@ -290,7 +291,7 @@ const createStyles = (isDark: boolean) => {
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: IOS_SPACING.lg,
-      paddingTop: IOS_SPACING.md,
+      paddingTop: IOS_SPACING.xl,
       paddingBottom: IOS_SPACING.lg,
     },
     headerTitle: {

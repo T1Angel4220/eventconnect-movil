@@ -380,7 +380,7 @@ const createStyles = (isDark: boolean) => {
     },
     headerContainer: {
       paddingHorizontal: IOS_SPACING.lg,
-      paddingTop: IOS_SPACING.md,
+      paddingTop: IOS_SPACING.xl,
       paddingBottom: IOS_SPACING.lg,
     },
     greetingContainer: {
