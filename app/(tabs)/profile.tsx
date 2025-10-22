@@ -6,10 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth, useTheme } from "@/src/hooks";
+import { userService } from "@/src/services";
 import { IOS_TYPOGRAPHY, IOS_SPACING, IOS_RADIUS, IOS_COLORS, IOS_SHADOWS, getIOSColor } from "@/src/constants/iosStyles";
 import { IOSAlert, AlertButton } from "@/src/components";
 
@@ -142,12 +144,21 @@ export default function ProfileScreen() {
 
         {/* Avatar y nombre */}
         <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            <Ionicons 
-              name="person" 
-              size={56} 
-              color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
-            />
+          <View style={styles.avatarWrapper}>
+            {user?.profile_image ? (
+              <Image
+                source={{ uri: userService.getImageUrl(user.profile_image) }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <View style={styles.avatar}>
+                <Ionicons 
+                  name="person" 
+                  size={56} 
+                  color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+                />
+              </View>
+            )}
           </View>
           <Text style={styles.userName}>
             {user?.first_name} {user?.last_name}
@@ -160,10 +171,47 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {/* Botones de acción rápida */}
+        <View style={styles.quickActionsContainer}>
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            onPress={() => router.push('/(profile)/edit-profile')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.quickActionIcon}>
+              <Ionicons 
+                name="pencil" 
+                size={20} 
+                color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+              />
+            </View>
+            <Text style={styles.quickActionText}>Editar Perfil</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            onPress={() => router.push('/(profile)/change-password')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.quickActionIcon}>
+              <Ionicons 
+                name="lock-closed" 
+                size={20} 
+                color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+              />
+            </View>
+            <Text style={styles.quickActionText}>Contraseña</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Información personal */}
         <ProfileSection title="Información Personal">
           <View style={styles.card}>
-            <View style={styles.infoRow}>
+            <TouchableOpacity
+              style={styles.infoRow}
+              onPress={() => router.push('/(profile)/edit-profile')}
+              activeOpacity={0.7}
+            >
               <View style={styles.infoIcon}>
                 <Ionicons 
                   name="person-outline" 
@@ -177,11 +225,20 @@ export default function ProfileScreen() {
                   {user?.first_name} {user?.last_name}
                 </Text>
               </View>
-            </View>
+              <Ionicons 
+                name="chevron-forward" 
+                size={20} 
+                color={getIOSColor(IOS_COLORS.label.tertiary, isDark)} 
+              />
+            </TouchableOpacity>
 
             <View style={styles.divider} />
 
-            <View style={styles.infoRow}>
+            <TouchableOpacity
+              style={styles.infoRow}
+              onPress={() => router.push('/(profile)/edit-profile')}
+              activeOpacity={0.7}
+            >
               <View style={styles.infoIcon}>
                 <Ionicons 
                   name="mail-outline" 
@@ -193,7 +250,40 @@ export default function ProfileScreen() {
                 <Text style={styles.infoLabel}>Correo Electrónico</Text>
                 <Text style={styles.infoValue}>{user?.email}</Text>
               </View>
-            </View>
+              <Ionicons 
+                name="chevron-forward" 
+                size={20} 
+                color={getIOSColor(IOS_COLORS.label.tertiary, isDark)} 
+              />
+            </TouchableOpacity>
+          </View>
+        </ProfileSection>
+
+        {/* Seguridad */}
+        <ProfileSection title="Seguridad">
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.infoRow}
+              onPress={() => router.push('/(profile)/change-password')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.infoIcon}>
+                <Ionicons 
+                  name="lock-closed-outline" 
+                  size={20} 
+                  color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+                />
+              </View>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Contraseña</Text>
+                <Text style={styles.infoValue}>••••••••</Text>
+              </View>
+              <Ionicons 
+                name="chevron-forward" 
+                size={20} 
+                color={getIOSColor(IOS_COLORS.label.tertiary, isDark)} 
+              />
+            </TouchableOpacity>
           </View>
         </ProfileSection>
 
@@ -321,6 +411,9 @@ const createStyles = (isDark: boolean) => {
       paddingVertical: IOS_SPACING.xl,
       paddingHorizontal: IOS_SPACING.lg,
     },
+    avatarWrapper: {
+      marginBottom: IOS_SPACING.md,
+    },
     avatar: {
       width: 100,
       height: 100,
@@ -330,7 +423,12 @@ const createStyles = (isDark: boolean) => {
         : 'rgba(0, 122, 255, 0.1)',
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: IOS_SPACING.md,
+    },
+    avatarImage: {
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      backgroundColor: getIOSColor(colors.fill.tertiary, isDark),
     },
     userName: {
       ...IOS_TYPOGRAPHY.title1,
@@ -358,6 +456,41 @@ const createStyles = (isDark: boolean) => {
       color: getIOSColor(colors.label.secondary, isDark),
       textTransform: 'capitalize',
       fontWeight: '600',
+    },
+    quickActionsContainer: {
+      flexDirection: 'row',
+      paddingHorizontal: IOS_SPACING.lg,
+      paddingVertical: IOS_SPACING.md,
+      gap: IOS_SPACING.md,
+      marginBottom: IOS_SPACING.lg,
+    },
+    quickActionButton: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: IOS_SPACING.md,
+      paddingHorizontal: IOS_SPACING.sm,
+      backgroundColor: isDark
+        ? getIOSColor(colors.background.secondary, isDark)
+        : getIOSColor(colors.background.tertiary, isDark),
+      borderRadius: IOS_RADIUS.medium,
+      ...IOS_SHADOWS.small,
+    },
+    quickActionIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: isDark
+        ? 'rgba(10, 132, 255, 0.15)'
+        : 'rgba(0, 122, 255, 0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: IOS_SPACING.xs,
+    },
+    quickActionText: {
+      ...IOS_TYPOGRAPHY.subheadline,
+      color: getIOSColor(colors.label.primary, isDark),
+      fontWeight: '600',
+      textAlign: 'center',
     },
     section: {
       marginBottom: IOS_SPACING.xl,
