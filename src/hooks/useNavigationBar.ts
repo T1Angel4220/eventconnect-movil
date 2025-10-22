@@ -1,17 +1,17 @@
 // Hook para controlar la barra de navegación del sistema
-// Oculta automáticamente la barra después de 5 segundos de inactividad
+// Oculta automáticamente la barra después de 5 segundos
+// Solo aparece con el gesto nativo de deslizar la barra de notificaciones
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import * as NavigationBar from 'expo-navigation-bar';
 
 /**
  * Hook para auto-ocultar la barra de navegación
  * Solo funciona en Android
+ * La barra solo aparece con el gesto de deslizar desde arriba
  */
 export const useNavigationBar = () => {
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   useEffect(() => {
     // Solo ejecutar en Android
     if (Platform.OS !== 'android') {
@@ -24,6 +24,7 @@ export const useNavigationBar = () => {
     const hideNavigationBar = async () => {
       try {
         await NavigationBar.setVisibilityAsync('hidden');
+        // overlay-swipe permite que aparezca al deslizar desde arriba
         await NavigationBar.setBehaviorAsync('overlay-swipe');
       } catch (error) {
         console.error('Error ocultando barra de navegación:', error);
@@ -41,62 +42,21 @@ export const useNavigationBar = () => {
       }
     };
 
-    /**
-     * Reinicia el temporizador para ocultar la barra
-     */
-    const resetTimer = () => {
-      // Limpiar timeout anterior
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+    // Mostrar la barra inicialmente
+    showNavigationBar();
 
-      // Mostrar la barra
-      showNavigationBar();
-
-      // Configurar nuevo timeout para ocultar después de 5 segundos
-      timeoutRef.current = setTimeout(() => {
-        hideNavigationBar();
-      }, 5000);
-    };
-
-    // Iniciar el temporizador al montar
-    resetTimer();
+    // Ocultar después de 5 segundos
+    const timeout = setTimeout(() => {
+      hideNavigationBar();
+    }, 5000);
 
     // Cleanup al desmontar
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      // Mostrar la barra al salir
+      clearTimeout(timeout);
+      // Mostrar la barra al salir de la app
       showNavigationBar();
     };
   }, []);
-
-  /**
-   * Función para llamar cuando el usuario interactúa con la pantalla
-   */
-  const onUserInteraction = () => {
-    if (Platform.OS === 'android') {
-      // Limpiar timeout anterior
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-
-      // Mostrar la barra
-      NavigationBar.setVisibilityAsync('visible').catch((error) => {
-        console.error('Error mostrando barra:', error);
-      });
-
-      // Ocultar después de 5 segundos
-      timeoutRef.current = setTimeout(() => {
-        NavigationBar.setVisibilityAsync('hidden').catch((error) => {
-          console.error('Error ocultando barra:', error);
-        });
-      }, 5000);
-    }
-  };
-
-  return { onUserInteraction };
 };
 
 export default useNavigationBar;
