@@ -8,6 +8,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  useColorScheme,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Button, Input, PasswordStrength } from "@/src/components";
@@ -22,6 +23,8 @@ import { Ionicons } from "@expo/vector-icons";
 export default function ResetPasswordScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ email?: string; resetId?: string }>();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   const email = params.email || "";
   const resetId = params.resetId ? parseInt(params.resetId) : undefined;
@@ -102,6 +105,8 @@ export default function ResetPasswordScreen() {
     }
   };
 
+  const styles = createStyles(isDark);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -110,111 +115,207 @@ export default function ResetPasswordScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
+        {/* Botón de volver */}
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <Text style={styles.backText}>← Volver</Text>
+          <Ionicons 
+            name="arrow-back" 
+            size={24} 
+            color={isDark ? "#ffffff" : "#000000"} 
+          />
         </TouchableOpacity>
 
-        <View style={styles.iconContainer}>
-          <Ionicons name="key-outline" size={80} color="#3b82f6" />
-        </View>
-
+        {/* Header con icono */}
         <View style={styles.header}>
-          <Text style={styles.title}>Nueva Contraseña</Text>
-          <Text style={styles.subtitle}>
-            Ingresa tu nueva contraseña para tu cuenta
-          </Text>
+          <View style={styles.iconContainer}>
+            <Ionicons 
+              name="key" 
+              size={64} 
+              color={isDark ? "#000000" : "#ffffff"} 
+            />
+          </View>
+          <Text style={styles.title}>Event Connect</Text>
+          <Text style={styles.subtitle}>Nueva Contraseña</Text>
         </View>
 
-        <View style={styles.form}>
-          <Input
-            label="Nueva Contraseña"
-            placeholder="••••••••"
-            value={newPassword}
-            onChangeText={(text) => {
-              setNewPassword(text);
-              setNewPasswordError("");
-            }}
-            error={newPasswordError}
-            icon="lock-closed-outline"
-            isPassword
-            autoFocus
-          />
+        {/* Card de reset */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Restablecer Contraseña</Text>
+          <Text style={styles.description}>
+            Ingresa tu nueva contraseña. Asegúrate de que sea segura y diferente a la anterior.
+          </Text>
 
-          <PasswordStrength password={newPassword} />
+          <View style={styles.form}>
+            <Input
+              label="Nueva Contraseña"
+              placeholder="••••••••"
+              value={newPassword}
+              onChangeText={(text) => {
+                setNewPassword(text);
+                setNewPasswordError("");
+              }}
+              error={newPasswordError}
+              icon="lock-closed-outline"
+              isPassword
+              autoFocus
+            />
 
-          <Input
-            label="Confirmar Nueva Contraseña"
-            placeholder="••••••••"
-            value={confirmPassword}
-            onChangeText={(text) => {
-              setConfirmPassword(text);
-              setConfirmPasswordError("");
-            }}
-            error={confirmPasswordError}
-            icon="lock-closed-outline"
-            isPassword
-          />
+            <PasswordStrength password={newPassword} />
 
-          <Button
-            title="Cambiar Contraseña"
-            onPress={handleResetPassword}
-            loading={isLoading}
-            fullWidth
-            style={styles.submitButton}
-          />
+            <Input
+              label="Confirmar Nueva Contraseña"
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                setConfirmPasswordError("");
+              }}
+              error={confirmPasswordError}
+              icon="lock-closed-outline"
+              isPassword
+            />
+
+            <View style={styles.infoBox}>
+              <Ionicons 
+                name="information-circle" 
+                size={20} 
+                color={isDark ? "#9ca3af" : "#6b7280"} 
+              />
+              <Text style={styles.infoText}>
+                La contraseña debe tener al menos 8 caracteres, incluir letras mayúsculas, minúsculas, números y caracteres especiales.
+              </Text>
+            </View>
+
+            <Button
+              title="Cambiar Contraseña"
+              onPress={handleResetPassword}
+              loading={isLoading}
+              fullWidth
+              style={styles.submitButton}
+            />
+          </View>
+        </View>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            © 2025 Event Connect - Sistema de Gestión Universitaria
+          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#ffffff",
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 24,
-    paddingTop: 60,
-  },
-  backButton: {
-    marginBottom: 24,
-  },
-  backText: {
-    fontSize: 16,
-    color: "#3b82f6",
-    fontWeight: "600",
-  },
-  iconContainer: {
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  header: {
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#1f2937",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#6b7280",
-    textAlign: "center",
-    lineHeight: 24,
-  },
-  form: {
-    gap: 8,
-  },
-  submitButton: {
-    marginTop: 16,
-  },
-});
-
+const createStyles = (isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: isDark ? "#000000" : "#ffffff",
+    },
+    scrollContent: {
+      flexGrow: 1,
+      justifyContent: "center",
+      padding: 24,
+      paddingTop: 60,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark ? "#1f2937" : "#f3f4f6",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 24,
+      alignSelf: "flex-start",
+    },
+    header: {
+      alignItems: "center",
+      marginBottom: 32,
+    },
+    iconContainer: {
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      backgroundColor: isDark ? "#ffffff" : "#000000",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 20,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 8,
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: "bold",
+      color: isDark ? "#ffffff" : "#000000",
+      marginBottom: 8,
+      textAlign: "center",
+    },
+    subtitle: {
+      fontSize: 16,
+      color: isDark ? "#9ca3af" : "#6b7280",
+      textAlign: "center",
+    },
+    card: {
+      backgroundColor: isDark ? "#000000" : "#ffffff",
+      borderRadius: 16,
+      borderWidth: 2,
+      borderColor: isDark ? "#ffffff" : "#e5e7eb",
+      padding: 24,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.2,
+      shadowRadius: 16,
+      elevation: 10,
+    },
+    cardTitle: {
+      fontSize: 20,
+      fontWeight: "bold",
+      color: isDark ? "#ffffff" : "#000000",
+      marginBottom: 12,
+      textAlign: "center",
+    },
+    description: {
+      fontSize: 14,
+      color: isDark ? "#9ca3af" : "#6b7280",
+      textAlign: "center",
+      marginBottom: 24,
+      lineHeight: 20,
+    },
+    form: {
+      gap: 16,
+    },
+    infoBox: {
+      flexDirection: "row",
+      backgroundColor: isDark ? "#1f2937" : "#f3f4f6",
+      borderRadius: 12,
+      padding: 16,
+      gap: 12,
+      alignItems: "flex-start",
+    },
+    infoText: {
+      flex: 1,
+      fontSize: 12,
+      color: isDark ? "#9ca3af" : "#6b7280",
+      lineHeight: 18,
+    },
+    submitButton: {
+      marginTop: 8,
+    },
+    footer: {
+      marginTop: 32,
+      alignItems: "center",
+    },
+    footerText: {
+      fontSize: 12,
+      color: isDark ? "#6b7280" : "#9ca3af",
+      textAlign: "center",
+    },
+  });

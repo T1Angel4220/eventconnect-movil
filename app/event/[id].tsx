@@ -21,6 +21,7 @@ import {
   getEventTypeName,
   formatCapacity,
   getOccupancyPercentage,
+  getImageUrl,
 } from "@/src/utils";
 
 /**
@@ -140,7 +141,7 @@ export default function EventDetailsScreen() {
         <View style={styles.imageContainer}>
           {event.event_image ? (
             <Image
-              source={{ uri: `http://10.79.27.186:3001${event.event_image}` }}
+              source={{ uri: getImageUrl(event.event_image) }}
               style={styles.image}
               resizeMode="cover"
             />

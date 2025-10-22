@@ -1,6 +1,6 @@
 // Funciones de formato
 
-import { EVENT_TYPES, EVENT_STATUS } from '@/src/constants/config';
+import { EVENT_TYPES, EVENT_STATUS, API_BASE_URL } from '@/src/constants/config';
 import { EventType, EventStatus } from '@/src/types';
 
 /**
@@ -153,5 +153,38 @@ export const formatCapacity = (current: number, total: number): string => {
 export const getOccupancyPercentage = (current: number, total: number): number => {
   if (total === 0) return 0;
   return Math.round((current / total) * 100);
+};
+
+/**
+ * Convierte una URL de imagen relativa del backend a una URL absoluta
+ * Ejemplo: "/uploads/events/imagen.jpg" -> "http://10.0.2.2:3001/uploads/events/imagen.jpg"
+ */
+export const getImageUrl = (imagePath: string | null | undefined): string => {
+  // Si no hay imagen, retornar una imagen por defecto
+  if (!imagePath) {
+    return getBackendUrl('/uploads/events/default-event.jpg');
+  }
+
+  // Si la URL ya es absoluta (comienza con http:// o https://), retornarla tal cual
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+
+  // Si la URL es relativa, construir la URL completa
+  return getBackendUrl(imagePath);
+};
+
+/**
+ * Construye una URL completa del backend
+ * Elimina el '/api' del final de API_BASE_URL y agrega la ruta
+ */
+const getBackendUrl = (path: string): string => {
+  // Obtener la URL base sin el '/api'
+  const baseUrl = API_BASE_URL.replace('/api', '');
+  
+  // Asegurarse de que la ruta comience con /
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  
+  return `${baseUrl}${normalizedPath}`;
 };
 
