@@ -1,4 +1,4 @@
-// Componente de botón personalizado
+// Componente de botón personalizado con soporte para modo oscuro
 
 import React from "react";
 import {
@@ -9,6 +9,7 @@ import {
   ViewStyle,
   TextStyle,
 } from "react-native";
+import { useTheme } from "@/src/hooks";
 
 interface ButtonProps {
   title: string;
@@ -34,12 +35,63 @@ export const Button: React.FC<ButtonProps> = ({
   textStyle,
 }) => {
   const isDisabled = disabled || loading;
+  const { isDark } = useTheme();
+
+  // Colores dinámicos según el tema
+  const getButtonStyle = () => {
+    if (variant === "primary") {
+      return {
+        backgroundColor: isDark ? "#ffffff" : "#000000",
+        borderWidth: 2,
+        borderColor: isDark ? "#ffffff" : "#000000",
+      };
+    }
+    if (variant === "outline") {
+      return {
+        backgroundColor: "transparent",
+        borderWidth: 2,
+        borderColor: isDark ? "#ffffff" : "#000000",
+      };
+    }
+    if (variant === "danger") {
+      return {
+        backgroundColor: "#ef4444",
+        borderWidth: 2,
+        borderColor: "#ef4444",
+      };
+    }
+    return {
+      backgroundColor: "#6b7280",
+      borderWidth: 2,
+      borderColor: "#6b7280",
+    };
+  };
+
+  const getTextColor = () => {
+    if (variant === "primary") {
+      return isDark ? "#000000" : "#ffffff";
+    }
+    if (variant === "outline") {
+      return isDark ? "#ffffff" : "#000000";
+    }
+    return "#ffffff";
+  };
+
+  const getLoaderColor = () => {
+    if (variant === "primary") {
+      return isDark ? "#000000" : "#ffffff";
+    }
+    if (variant === "outline") {
+      return isDark ? "#ffffff" : "#000000";
+    }
+    return "#ffffff";
+  };
 
   return (
     <TouchableOpacity
       style={[
         styles.button,
-        styles[variant],
+        getButtonStyle(),
         styles[size],
         fullWidth && styles.fullWidth,
         isDisabled && styles.disabled,
@@ -50,16 +102,13 @@ export const Button: React.FC<ButtonProps> = ({
       activeOpacity={0.7}
     >
       {loading ? (
-        <ActivityIndicator
-          color={variant === "outline" ? "#3b82f6" : "#ffffff"}
-          size="small"
-        />
+        <ActivityIndicator color={getLoaderColor()} size="small" />
       ) : (
         <Text
           style={[
             styles.text,
-            styles[`${variant}Text`],
             styles[`${size}Text`],
+            { color: getTextColor() },
             textStyle,
           ]}
         >
@@ -76,6 +125,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   fullWidth: {
     width: "100%",
@@ -83,49 +137,22 @@ const styles = StyleSheet.create({
   disabled: {
     opacity: 0.5,
   },
-  // Variants
-  primary: {
-    backgroundColor: "#3b82f6",
-  },
-  secondary: {
-    backgroundColor: "#6b7280",
-  },
-  outline: {
-    backgroundColor: "transparent",
-    borderWidth: 2,
-    borderColor: "#3b82f6",
-  },
-  danger: {
-    backgroundColor: "#ef4444",
-  },
   // Sizes
   small: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 16,
   },
   medium: {
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 24,
   },
   large: {
-    paddingVertical: 16,
+    paddingVertical: 18,
     paddingHorizontal: 32,
   },
   // Text styles
   text: {
-    fontWeight: "600",
-  },
-  primaryText: {
-    color: "#ffffff",
-  },
-  secondaryText: {
-    color: "#ffffff",
-  },
-  outlineText: {
-    color: "#3b82f6",
-  },
-  dangerText: {
-    color: "#ffffff",
+    fontWeight: "700",
   },
   smallText: {
     fontSize: 14,
@@ -139,4 +166,3 @@ const styles = StyleSheet.create({
 });
 
 export default Button;
-

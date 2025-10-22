@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useAuth } from "@/src/hooks";
+import { useAuth, useTheme } from "@/src/hooks";
 import { eventService, registrationService } from "@/src/services";
 import { EventWithOrganizer } from "@/src/types";
 import { Loading, ErrorMessage } from "@/src/components";
@@ -26,6 +26,7 @@ import {
   truncateText,
   formatCapacity,
   getOccupancyPercentage,
+  getImageUrl,
 } from "@/src/utils";
 
 /**
@@ -35,6 +36,7 @@ import {
 export default function EventsScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { isDark, toggleTheme, theme } = useTheme();
 
   const [events, setEvents] = useState<EventWithOrganizer[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<EventWithOrganizer[]>([]);
@@ -179,7 +181,7 @@ export default function EventsScreen() {
         <View style={styles.eventImageContainer}>
           {item.event_image ? (
             <Image
-              source={{ uri: `http://10.79.27.186:3001${item.event_image}` }} // TODO: Usar API_BASE_URL desde config
+              source={{ uri: getImageUrl(item.event_image) }}
               style={styles.eventImage}
               resizeMode="cover"
             />
@@ -296,10 +298,23 @@ export default function EventsScreen() {
    */
   const ListHeader = () => (
     <View>
-      {/* Bienvenida */}
-      <View style={styles.welcomeContainer}>
-        <Text style={styles.welcomeText}>¡Hola, {user?.first_name}! 👋</Text>
-        <Text style={styles.subtitleText}>Descubre eventos increíbles</Text>
+      {/* Header con toggle */}
+      <View style={styles.topHeader}>
+        <View style={styles.welcomeContainer}>
+          <Text style={styles.welcomeText}>¡Hola, {user?.first_name}! 👋</Text>
+          <Text style={styles.subtitleText}>Descubre eventos increíbles</Text>
+        </View>
+        <TouchableOpacity
+          onPress={toggleTheme}
+          style={styles.themeToggle}
+          activeOpacity={0.7}
+        >
+          <Ionicons 
+            name={theme === 'system' ? 'phone-portrait-outline' : isDark ? "sunny" : "moon"} 
+            size={24} 
+            color={isDark ? "#fbbf24" : "#000000"} 
+          />
+        </TouchableOpacity>
       </View>
 
       {/* Búsqueda */}
@@ -424,8 +439,30 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
   },
-  welcomeContainer: {
+  topHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
     marginBottom: 20,
+  },
+  welcomeContainer: {
+    flex: 1,
+  },
+  themeToggle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#ffffff",
+    borderWidth: 2,
+    borderColor: "#e5e7eb",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginLeft: 12,
   },
   welcomeText: {
     fontSize: 28,

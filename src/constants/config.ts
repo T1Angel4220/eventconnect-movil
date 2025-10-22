@@ -4,7 +4,7 @@
 // En desarrollo, usa tu IP local (no localhost porque el emulador no la reconoce)
 // Para encontrar tu IP: ipconfig en Windows, ifconfig en Mac/Linux
 export const API_BASE_URL = __DEV__ 
-  ? 'http://10.79.27.186:3001/api'  // Cambia esta IP por la tuya
+  ? 'http://192.168.1.10:3001/api'  // IP especial para Android Emulator que apunta a localhost
   : 'https://tu-api-produccion.com/api'; // URL de producción cuando despliegues
 
 // Configuración de timeouts

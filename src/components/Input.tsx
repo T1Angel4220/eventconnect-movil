@@ -1,4 +1,4 @@
-// Componente de input personalizado
+// Componente de input personalizado con soporte para modo oscuro
 
 import React, { useState } from "react";
 import {
@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "@/src/hooks";
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -28,34 +29,59 @@ export const Input: React.FC<InputProps> = ({
 }) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const { isDark } = useTheme();
 
   const togglePasswordVisibility = () => {
     setIsPasswordVisible(!isPasswordVisible);
   };
 
+  // Colores dinámicos según el tema
+  const getLabelColor = () => (isDark ? "#ffffff" : "#000000");
+  const getInputBgColor = () => (isDark ? "#ffffff" : "#f3f4f6");
+  const getBorderColor = () => {
+    if (error) return "#ef4444";
+    if (isFocused) return isDark ? "#ffffff" : "#000000";
+    return isDark ? "#4b5563" : "#e5e7eb";
+  };
+  const getIconColor = () => {
+    if (error) return "#ef4444";
+    if (isFocused) return isDark ? "#000000" : "#000000";
+    return "#6b7280";
+  };
+  const getTextColor = () => "#000000"; // Siempre negro porque el input es blanco/gris claro
+  const getPlaceholderColor = () => "#9ca3af";
+
   return (
     <View style={styles.container}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && (
+        <Text style={[styles.label, { color: getLabelColor() }]}>{label}</Text>
+      )}
       
       <View
         style={[
           styles.inputContainer,
-          isFocused && styles.inputContainerFocused,
-          error && styles.inputContainerError,
+          {
+            backgroundColor: getInputBgColor(),
+            borderColor: getBorderColor(),
+          },
         ]}
       >
         {icon && (
           <Ionicons
             name={icon}
             size={20}
-            color={error ? "#ef4444" : isFocused ? "#3b82f6" : "#9ca3af"}
+            color={getIconColor()}
             style={styles.icon}
           />
         )}
         
         <TextInput
-          style={[styles.input, style]}
-          placeholderTextColor="#9ca3af"
+          style={[
+            styles.input,
+            { color: getTextColor() },
+            style,
+          ]}
+          placeholderTextColor={getPlaceholderColor()}
           secureTextEntry={isPassword && !isPasswordVisible}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
@@ -71,7 +97,7 @@ export const Input: React.FC<InputProps> = ({
             <Ionicons
               name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
               size={20}
-              color="#9ca3af"
+              color="#6b7280"
             />
           </TouchableOpacity>
         )}
@@ -89,33 +115,22 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#374151",
     marginBottom: 8,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f9fafb",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderWidth: 2,
     borderRadius: 12,
     paddingHorizontal: 12,
-  },
-  inputContainerFocused: {
-    borderColor: "#3b82f6",
-    backgroundColor: "#ffffff",
-  },
-  inputContainerError: {
-    borderColor: "#ef4444",
   },
   icon: {
     marginRight: 8,
   },
   input: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontSize: 16,
-    color: "#1f2937",
   },
   eyeIcon: {
     padding: 4,
@@ -123,10 +138,9 @@ const styles = StyleSheet.create({
   error: {
     fontSize: 12,
     color: "#ef4444",
-    marginTop: 4,
+    marginTop: 6,
     marginLeft: 4,
   },
 });
 
 export default Input;
-
