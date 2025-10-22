@@ -17,11 +17,11 @@ export const STORAGE_KEYS = {
   REMEMBER_EMAIL: '@eventconnect_remember_email',
 } as const;
 
-// Tipos de eventos (para filtros y displays)
+// Tipos de eventos (para filtros y displays) - EN ESPAÑOL
 export const EVENT_TYPES = {
-  academic: 'Académico',
+  academico: 'Académico',
   cultural: 'Cultural',
-  sports: 'Deportivo',
+  deportivo: 'Deportivo',
 } as const;
 
 // Estados de eventos
