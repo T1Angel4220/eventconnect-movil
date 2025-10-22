@@ -1,6 +1,7 @@
 // Tipos relacionados con eventos
 
-export type EventType = 'academic' | 'cultural' | 'sports';
+// IMPORTANTE: Los tipos de eventos están en ESPAÑOL en la base de datos
+export type EventType = 'academico' | 'cultural' | 'deportivo';
 export type EventStatus = 'upcoming' | 'in_progress' | 'completed';
 
 export interface Event {

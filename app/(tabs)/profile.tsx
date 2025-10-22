@@ -37,6 +37,21 @@ export default function ProfileScreen() {
   const styles = createStyles(isDark);
 
   /**
+   * Traduce el rol del usuario al español
+   */
+  const getRoleLabel = (role: string | undefined): string => {
+    if (!role) return '';
+    
+    const roleMap: { [key: string]: string } = {
+      'participant': 'Participante',
+      'organizer': 'Organizador',
+      'admin': 'Administrador',
+    };
+    
+    return roleMap[role.toLowerCase()] || role;
+  };
+
+  /**
    * Ejecuta el logout y redirige al login
    */
   const performLogout = async () => {
@@ -140,7 +155,7 @@ export default function ProfileScreen() {
           <Text style={styles.userEmail}>{user?.email}</Text>
           {user?.role && (
             <View style={styles.roleBadge}>
-              <Text style={styles.roleText}>{user.role}</Text>
+              <Text style={styles.roleText}>{getRoleLabel(user.role)}</Text>
             </View>
           )}
         </View>
