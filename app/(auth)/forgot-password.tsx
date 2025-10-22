@@ -7,19 +7,18 @@ import {
   Platform,
   ScrollView,
   TouchableOpacity,
-  Alert,
   SafeAreaView,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Button, Input } from "@/src/components";
+import { Button, Input, IOSAlert, AlertButton } from "@/src/components";
 import { validateEmail } from "@/src/utils";
 import { authService } from "@/src/services";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/hooks";
-import { IOS_TYPOGRAPHY, IOS_SPACING, IOS_RADIUS, IOS_COLORS, getIOSColor } from "@/src/constants/iosStyles";
+import { IOS_COLORS, getIOSColor } from "@/src/constants/iosStyles";
 
 /**
- * Pantalla de Recuperar Contraseña - Estilo iOS/Apple
+ * Pantalla de Recuperar Contraseña - Diseño iOS Nativo
  */
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -28,6 +27,19 @@ export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Estado para la alerta iOS
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons: AlertButton[];
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    buttons: [{ text: "OK", style: "default" }],
+  });
 
   const styles = createStyles(isDark);
 
@@ -56,12 +68,14 @@ export default function ForgotPasswordScreen() {
       const result = await authService.forgotPassword({ email });
 
       if (result.success && result.userId) {
-        Alert.alert(
-          "¡Código Enviado!",
-          "Revisa tu correo electrónico. Te hemos enviado un código de verificación.",
-          [
+        setAlertConfig({
+          visible: true,
+          title: "¡Código Enviado!",
+          message: "Revisa tu correo electrónico. Te hemos enviado un código de verificación.",
+          buttons: [
             {
               text: "Continuar",
+              style: "default",
               onPress: () => {
                 router.push({
                   pathname: "/(auth)/verify-code",
@@ -72,13 +86,23 @@ export default function ForgotPasswordScreen() {
                 });
               },
             },
-          ]
-        );
+          ],
+        });
       } else {
-        Alert.alert("Error", result.message);
+        setAlertConfig({
+          visible: true,
+          title: "Error",
+          message: result.message,
+          buttons: [{ text: "OK", style: "default" }],
+        });
       }
     } catch (error) {
-      Alert.alert("Error", "Ocurrió un error al enviar el código");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Ocurrió un error al enviar el código",
+        buttons: [{ text: "OK", style: "default" }],
+      });
       console.error("Error en forgot password:", error);
     } finally {
       setIsLoading(false);
@@ -95,12 +119,14 @@ export default function ForgotPasswordScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          {/* Botón de volver estilo iOS */}
+          {/* Botón de volver */}
           <TouchableOpacity
             onPress={() => router.back()}
             style={styles.backButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            activeOpacity={0.6}
           >
             <Ionicons 
               name="chevron-back" 
@@ -110,62 +136,67 @@ export default function ForgotPasswordScreen() {
             <Text style={styles.backText}>Volver</Text>
           </TouchableOpacity>
 
-          {/* Espaciador */}
-          <View style={styles.spacer} />
+          {/* Espaciador superior */}
+          <View style={styles.topSpacer} />
 
-          {/* Icono central */}
-          <View style={styles.iconContainer}>
+          {/* Icono de llave */}
+          <View style={styles.iconSection}>
             <View style={styles.iconCircle}>
               <Ionicons 
                 name="key" 
-                size={44} 
+                size={56} 
                 color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
               />
             </View>
           </View>
 
           {/* Título y descripción */}
-          <View style={styles.headerContainer}>
+          <View style={styles.headerSection}>
             <Text style={styles.title}>¿Olvidaste tu contraseña?</Text>
-            <Text style={styles.subtitle}>
+            <Text style={styles.description}>
               No te preocupes, te enviaremos un código de verificación a tu email para restablecer tu contraseña.
             </Text>
           </View>
 
           {/* Formulario */}
-          <View style={styles.formContainer}>
-            <Input
-              label="Correo electrónico"
-              placeholder="tu@email.com"
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                setEmailError("");
-              }}
-              error={emailError}
-              icon="mail-outline"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-            />
+          <View style={styles.formSection}>
+            <View style={styles.inputGroup}>
+              <Input
+                label="Correo electrónico"
+                placeholder="tu@email.com"
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  setEmailError("");
+                }}
+                error={emailError}
+                icon="mail-outline"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                textContentType="emailAddress"
+              />
+            </View>
 
             {/* Botón de enviar código */}
-            <Button
-              title="Enviar Código de Recuperación"
-              onPress={handleSendCode}
-              loading={isLoading}
-              fullWidth
-              style={styles.sendButton}
-            />
+            <View style={styles.buttonContainer}>
+              <Button
+                title={isLoading ? "Enviando..." : "Enviar Código de Recuperación"}
+                onPress={handleSendCode}
+                loading={isLoading}
+                fullWidth
+              />
+            </View>
 
-            {/* Recordaste contraseña */}
-            <View style={styles.rememberContainer}>
-              <Text style={styles.rememberText}>¿Recordaste tu contraseña?</Text>
+            {/* Link de login con salto de línea */}
+            <View style={styles.loginRow}>
+              <Text style={styles.loginQuestion}>¿Recordaste tu contraseña?</Text>
               <TouchableOpacity 
                 onPress={() => router.push("/(auth)/login")}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                activeOpacity={0.6}
               >
-                <Text style={styles.rememberLink}>Iniciar Sesión</Text>
+                <Text style={styles.loginLink}>Iniciar Sesión</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -174,6 +205,15 @@ export default function ForgotPasswordScreen() {
           <View style={styles.bottomSpacer} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Alerta iOS */}
+      <IOSAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={() => setAlertConfig({ ...alertConfig, visible: false })}
+      />
     </SafeAreaView>
   );
 }
@@ -191,79 +231,100 @@ const createStyles = (isDark: boolean) => {
     },
     scrollContent: {
       flexGrow: 1,
-      paddingHorizontal: IOS_SPACING.lg,
-      paddingBottom: IOS_SPACING.xl,
+      paddingHorizontal: 20,
     },
+    
+    // Back Button
     backButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: IOS_SPACING.sm,
-      marginTop: IOS_SPACING.sm,
-      marginLeft: -IOS_SPACING.sm,
+      paddingVertical: 8,
+      marginTop: 25,
+      marginLeft: -8,
     },
     backText: {
-      ...IOS_TYPOGRAPHY.body,
+      fontSize: 17,
+      fontWeight: '400',
       color: getIOSColor(colors.systemBlue, isDark),
-      marginLeft: 2,
+      marginLeft: 4,
+      letterSpacing: -0.41,
     },
-    spacer: {
-      height: IOS_SPACING.xxxl,
+    topSpacer: {
+      height: 24,
     },
-    iconContainer: {
+    
+    // Icon Section
+    iconSection: {
       alignItems: 'center',
-      marginBottom: IOS_SPACING.xl,
+      marginBottom: 32,
     },
     iconCircle: {
-      width: 100,
-      height: 100,
-      borderRadius: 50,
+      width: 120,
+      height: 120,
+      borderRadius: 60,
       backgroundColor: isDark 
         ? 'rgba(10, 132, 255, 0.15)' 
         : 'rgba(0, 122, 255, 0.1)',
       alignItems: 'center',
       justifyContent: 'center',
     },
-    headerContainer: {
+    
+    // Header Section
+    headerSection: {
       alignItems: 'center',
-      marginBottom: IOS_SPACING.xxxl,
-      paddingHorizontal: IOS_SPACING.sm,
+      marginBottom: 40,
+      paddingHorizontal: 8,
     },
     title: {
-      ...IOS_TYPOGRAPHY.largeTitle,
+      fontSize: 28,
+      fontWeight: '700',
       color: getIOSColor(colors.label.primary, isDark),
-      marginBottom: IOS_SPACING.md,
+      marginBottom: 12,
       textAlign: 'center',
+      letterSpacing: 0.36,
     },
-    subtitle: {
-      ...IOS_TYPOGRAPHY.body,
+    description: {
+      fontSize: 15,
+      fontWeight: '400',
       color: getIOSColor(colors.label.secondary, isDark),
       textAlign: 'center',
-      lineHeight: 24,
+      lineHeight: 22,
+      letterSpacing: -0.24,
     },
-    formContainer: {
-      gap: IOS_SPACING.md,
+    
+    // Form Section
+    formSection: {
+      gap: 0,
     },
-    sendButton: {
-      marginTop: IOS_SPACING.md,
+    inputGroup: {
+      marginBottom: 24,
     },
-    rememberContainer: {
-      flexDirection: 'row',
-      justifyContent: 'center',
+    buttonContainer: {
+      marginBottom: 24,
+    },
+    
+    // Login Link Section
+    loginRow: {
       alignItems: 'center',
-      marginTop: IOS_SPACING.xl,
-      gap: IOS_SPACING.xs,
+      gap: 8,
     },
-    rememberText: {
-      ...IOS_TYPOGRAPHY.body,
+    loginQuestion: {
+      fontSize: 15,
+      fontWeight: '400',
       color: getIOSColor(colors.label.secondary, isDark),
+      letterSpacing: -0.24,
+      textAlign: 'center',
     },
-    rememberLink: {
-      ...IOS_TYPOGRAPHY.body,
-      color: getIOSColor(colors.systemBlue, isDark),
+    loginLink: {
+      fontSize: 15,
       fontWeight: '600',
+      color: getIOSColor(colors.systemBlue, isDark),
+      letterSpacing: -0.24,
+      textAlign: 'center',
     },
+    
     bottomSpacer: {
-      height: IOS_SPACING.xxxl,
+      height: 40,
     },
   });
 };

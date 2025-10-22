@@ -7,19 +7,17 @@ import {
   Platform,
   ScrollView,
   TouchableOpacity,
-  Alert,
   SafeAreaView,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { CodeInput } from "@/src/components";
+import { CodeInput, IOSAlert, AlertButton } from "@/src/components";
 import { authService } from "@/src/services";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/hooks";
-import { IOS_TYPOGRAPHY, IOS_SPACING, IOS_RADIUS, IOS_COLORS, getIOSColor } from "@/src/constants/iosStyles";
+import { IOS_COLORS, getIOSColor } from "@/src/constants/iosStyles";
 
 /**
- * Pantalla de Verificación de Código - Estilo iOS
- * Verifica el código de 6 dígitos enviado por email
+ * Pantalla de Verificación de Código - Diseño iOS Nativo
  */
 export default function VerifyCodeScreen() {
   const router = useRouter();
@@ -31,6 +29,19 @@ export default function VerifyCodeScreen() {
   const [, setCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // Estado para la alerta iOS
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons: AlertButton[];
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    buttons: [{ text: "OK", style: "default" }],
+  });
+
   const styles = createStyles(isDark);
 
   /**
@@ -38,7 +49,12 @@ export default function VerifyCodeScreen() {
    */
   const handleVerifyCode = async (verificationCode: string) => {
     if (!email || !userId) {
-      Alert.alert("Error", "Datos de recuperación no proporcionados");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Datos de recuperación no proporcionados",
+        buttons: [{ text: "OK", style: "default" }],
+      });
       return;
     }
 
@@ -52,26 +68,42 @@ export default function VerifyCodeScreen() {
       });
 
       if (result.success && result.resetId) {
-        Alert.alert("¡Código Verificado!", "Ahora puedes cambiar tu contraseña", [
-          {
-            text: "Continuar",
-            onPress: () => {
-              router.push({
-                pathname: "/(auth)/reset-password",
-                params: {
-                  email,
-                  resetId: result.resetId!.toString(),
-                },
-              });
+        setAlertConfig({
+          visible: true,
+          title: "¡Código Verificado!",
+          message: "Ahora puedes cambiar tu contraseña",
+          buttons: [
+            {
+              text: "Continuar",
+              style: "default",
+              onPress: () => {
+                router.push({
+                  pathname: "/(auth)/reset-password",
+                  params: {
+                    email,
+                    resetId: result.resetId!.toString(),
+                  },
+                });
+              },
             },
-          },
-        ]);
+          ],
+        });
       } else {
-        Alert.alert("Código Inválido", result.message || "El código no es correcto");
+        setAlertConfig({
+          visible: true,
+          title: "Código Inválido",
+          message: result.message || "El código no es correcto",
+          buttons: [{ text: "OK", style: "default" }],
+        });
         setCode("");
       }
     } catch (error) {
-      Alert.alert("Error", "Ocurrió un error al verificar el código");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Ocurrió un error al verificar el código",
+        buttons: [{ text: "OK", style: "default" }],
+      });
       console.error("Error verificando código:", error);
     } finally {
       setIsLoading(false);
@@ -88,13 +120,28 @@ export default function VerifyCodeScreen() {
       const result = await authService.forgotPassword({ email });
       
       if (result.success && result.userId) {
-        Alert.alert("¡Código Reenviado!", "Revisa tu correo electrónico");
+        setAlertConfig({
+          visible: true,
+          title: "¡Código Reenviado!",
+          message: "Revisa tu correo electrónico",
+          buttons: [{ text: "OK", style: "default" }],
+        });
         setCode("");
       } else {
-        Alert.alert("Error", result.message);
+        setAlertConfig({
+          visible: true,
+          title: "Error",
+          message: result.message,
+          buttons: [{ text: "OK", style: "default" }],
+        });
       }
     } catch (error) {
-      Alert.alert("Error", "No se pudo reenviar el código");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "No se pudo reenviar el código",
+        buttons: [{ text: "OK", style: "default" }],
+      });
       console.error("Error reenviando código:", error);
     }
   };
@@ -109,12 +156,14 @@ export default function VerifyCodeScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          {/* Botón de volver estilo iOS */}
+          {/* Botón de volver */}
           <TouchableOpacity
             onPress={() => router.back()}
             style={styles.backButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            activeOpacity={0.6}
           >
             <Ionicons 
               name="chevron-back" 
@@ -124,11 +173,11 @@ export default function VerifyCodeScreen() {
             <Text style={styles.backText}>Atrás</Text>
           </TouchableOpacity>
 
-          {/* Espaciador */}
-          <View style={styles.spacer} />
+          {/* Espaciador superior */}
+          <View style={styles.topSpacer} />
 
-          {/* Icono central */}
-          <View style={styles.iconContainer}>
+          {/* Icono de escudo */}
+          <View style={styles.iconSection}>
             <View style={styles.iconCircle}>
               <Ionicons 
                 name="shield-checkmark" 
@@ -139,16 +188,16 @@ export default function VerifyCodeScreen() {
           </View>
 
           {/* Título y descripción */}
-          <View style={styles.headerContainer}>
+          <View style={styles.headerSection}>
             <Text style={styles.title}>Verifica tu Código</Text>
-            <Text style={styles.subtitle}>
+            <Text style={styles.description}>
               Ingresa el código de 6 dígitos que enviamos a
             </Text>
-            <Text style={styles.email}>{email}</Text>
+            <Text style={styles.emailText}>{email}</Text>
           </View>
 
           {/* Input de código */}
-          <View style={styles.codeContainer}>
+          <View style={styles.codeSection}>
             <View style={styles.codeInputWrapper}>
               <CodeInput
                 length={6}
@@ -164,7 +213,7 @@ export default function VerifyCodeScreen() {
             )}
           </View>
 
-          {/* Card informativa estilo iOS */}
+          {/* Card informativa */}
           <View style={styles.infoCard}>
             <Ionicons 
               name="information-circle" 
@@ -177,18 +226,31 @@ export default function VerifyCodeScreen() {
             </Text>
           </View>
 
-          {/* Botón de reenviar */}
-          <View style={styles.resendContainer}>
-            <Text style={styles.resendText}>¿No recibiste el código?</Text>
-            <TouchableOpacity onPress={handleResendCode} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          {/* Link de reenviar código con salto de línea */}
+          <View style={styles.resendRow}>
+            <Text style={styles.resendQuestion}>¿No recibiste el código?</Text>
+            <TouchableOpacity 
+              onPress={handleResendCode}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              activeOpacity={0.6}
+            >
               <Text style={styles.resendLink}>Reenviar</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Espaciador final */}
+          {/* Espaciador inferior */}
           <View style={styles.bottomSpacer} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Alerta iOS */}
+      <IOSAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={() => setAlertConfig({ ...alertConfig, visible: false })}
+      />
     </SafeAreaView>
   );
 }
@@ -206,112 +268,141 @@ const createStyles = (isDark: boolean) => {
     },
     scrollContent: {
       flexGrow: 1,
-      paddingHorizontal: IOS_SPACING.lg, // 20px
-      paddingBottom: IOS_SPACING.xl,
+      paddingHorizontal: 20,
     },
+    
+    // Back Button
     backButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: IOS_SPACING.sm,
-      marginTop: IOS_SPACING.sm,
-      marginLeft: -IOS_SPACING.sm,
+      paddingVertical: 8,
+      marginTop: 25,
+      marginLeft: -8,
     },
     backText: {
-      ...IOS_TYPOGRAPHY.body,
+      fontSize: 17,
+      fontWeight: '400',
       color: getIOSColor(colors.systemBlue, isDark),
-      marginLeft: 2,
+      marginLeft: 4,
+      letterSpacing: -0.41,
     },
-    spacer: {
-      height: IOS_SPACING.xl,
+    topSpacer: {
+      height: 24,
     },
-    iconContainer: {
+    
+    // Icon Section
+    iconSection: {
       alignItems: 'center',
-      marginBottom: IOS_SPACING.xl,
+      marginBottom: 32,
     },
     iconCircle: {
-      width: 100,
-      height: 100,
-      borderRadius: 50,
+      width: 120,
+      height: 120,
+      borderRadius: 60,
       backgroundColor: isDark 
         ? 'rgba(10, 132, 255, 0.15)' 
         : 'rgba(0, 122, 255, 0.1)',
       alignItems: 'center',
       justifyContent: 'center',
     },
-    headerContainer: {
+    
+    // Header Section
+    headerSection: {
       alignItems: 'center',
-      marginBottom: IOS_SPACING.xxxl,
+      marginBottom: 40,
+      paddingHorizontal: 8,
     },
     title: {
-      ...IOS_TYPOGRAPHY.largeTitle,
+      fontSize: 28,
+      fontWeight: '700',
       color: getIOSColor(colors.label.primary, isDark),
-      marginBottom: IOS_SPACING.md,
+      marginBottom: 12,
       textAlign: 'center',
+      letterSpacing: 0.36,
     },
-    subtitle: {
-      ...IOS_TYPOGRAPHY.body,
+    description: {
+      fontSize: 15,
+      fontWeight: '400',
       color: getIOSColor(colors.label.secondary, isDark),
       textAlign: 'center',
-      marginBottom: IOS_SPACING.sm,
+      lineHeight: 22,
+      letterSpacing: -0.24,
+      marginBottom: 4,
     },
-    email: {
-      ...IOS_TYPOGRAPHY.headline,
+    emailText: {
+      fontSize: 15,
+      fontWeight: '600',
       color: getIOSColor(colors.systemBlue, isDark),
       textAlign: 'center',
+      letterSpacing: -0.24,
     },
-    codeContainer: {
-      marginBottom: IOS_SPACING.xl,
+    
+    // Code Section
+    codeSection: {
+      marginBottom: 32,
       alignItems: 'center',
     },
     codeInputWrapper: {
       width: '100%',
-      maxWidth: 380, // Ancho máximo para pantallas grandes
+      maxWidth: 380,
       alignSelf: 'center',
     },
     loadingContainer: {
-      marginTop: IOS_SPACING.md,
+      marginTop: 16,
       alignItems: 'center',
     },
     loadingText: {
-      ...IOS_TYPOGRAPHY.footnote,
+      fontSize: 13,
+      fontWeight: '400',
       color: getIOSColor(colors.label.secondary, isDark),
+      letterSpacing: -0.08,
     },
+    
+    // Info Card
     infoCard: {
       flexDirection: 'row',
       backgroundColor: isDark
-        ? 'rgba(142, 142, 147, 0.16)'
-        : 'rgba(120, 120, 128, 0.12)',
-      borderRadius: IOS_RADIUS.medium,
-      padding: IOS_SPACING.md,
-      marginBottom: IOS_SPACING.xl,
+        ? 'rgba(142, 142, 147, 0.12)'
+        : 'rgba(120, 120, 128, 0.08)',
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 24,
     },
     infoIcon: {
-      marginRight: IOS_SPACING.sm,
+      marginRight: 12,
       marginTop: 2,
     },
     infoText: {
-      ...IOS_TYPOGRAPHY.footnote,
-      color: getIOSColor(colors.label.secondary, isDark),
       flex: 1,
-      lineHeight: 18,
-    },
-    resendContainer: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: IOS_SPACING.xs,
-    },
-    resendText: {
-      ...IOS_TYPOGRAPHY.body,
+      fontSize: 13,
+      fontWeight: '400',
       color: getIOSColor(colors.label.secondary, isDark),
+      lineHeight: 18,
+      letterSpacing: -0.08,
+    },
+    
+    // Resend Section
+    resendRow: {
+      alignItems: 'center',
+      gap: 8,
+    },
+    resendQuestion: {
+      fontSize: 15,
+      fontWeight: '400',
+      color: getIOSColor(colors.label.secondary, isDark),
+      letterSpacing: -0.24,
+      textAlign: 'center',
     },
     resendLink: {
-      ...IOS_TYPOGRAPHY.body,
-      color: getIOSColor(colors.systemBlue, isDark),
+      fontSize: 15,
       fontWeight: '600',
+      color: getIOSColor(colors.systemBlue, isDark),
+      letterSpacing: -0.24,
+      textAlign: 'center',
     },
+    
     bottomSpacer: {
-      height: IOS_SPACING.xxxl,
+      height: 40,
     },
   });
 };

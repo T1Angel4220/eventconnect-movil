@@ -102,10 +102,12 @@ const createStyles = (isDark: boolean, isFocused: boolean, hasError: boolean) =>
       marginBottom: 0,
     },
     label: {
-      ...IOS_TYPOGRAPHY.footnote,
-      color: getIOSColor(colors.label.secondary, isDark),
+      fontSize: 13,
+      fontWeight: '600', // Negritas (Semibold)
+      color: getIOSColor(colors.label.primary, isDark), // Negro en light, blanco en dark
       marginBottom: IOS_SPACING.xs,
       paddingLeft: 2,
+      letterSpacing: -0.08,
     },
     inputContainer: {
       flexDirection: "row",

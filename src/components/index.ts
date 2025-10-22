@@ -6,4 +6,5 @@ export { Loading } from './Loading';
 export { ErrorMessage } from './ErrorMessage';
 export { PasswordStrength } from './PasswordStrength';
 export { CodeInput } from './CodeInput';
+export { IOSAlert, type AlertButton } from './IOSAlert';
 
