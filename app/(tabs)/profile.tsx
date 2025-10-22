@@ -36,6 +36,10 @@ export default function ProfileScreen() {
     buttons: [{ text: "OK", style: "default" }],
   });
 
+  // Estados para el diálogo de eliminación de cuenta
+  const [deletePassword, setDeletePassword] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const styles = createStyles(isDark);
 
   /**
@@ -83,6 +87,96 @@ export default function ProfileScreen() {
         },
       ],
     });
+  };
+
+  /**
+   * Maneja la eliminación de cuenta
+   */
+  const handleDeleteAccount = () => {
+    setDeletePassword('');
+    setAlertConfig({
+      visible: true,
+      title: "⚠️ Eliminar Cuenta",
+      message: "Esta acción es permanente y no se puede deshacer.\n\nSe eliminarán todos tus datos, eventos e inscripciones.\n\nIngresa tu contraseña para confirmar:",
+      buttons: [
+        { 
+          text: "Cancelar", 
+          style: "cancel",
+          onPress: () => {
+            setDeletePassword('');
+          }
+        },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          loading: isDeleting,
+          onPress: (passwordFromAlert) => confirmDeleteAccount(passwordFromAlert),
+        },
+      ],
+    });
+  };
+
+  /**
+   * Confirma la eliminación de cuenta
+   * @param passwordFromAlert - Contraseña recibida directamente del componente IOSAlert
+   */
+  const confirmDeleteAccount = async (passwordFromAlert?: string) => {
+    // Usar la contraseña que viene del componente IOSAlert directamente
+    const currentPassword = passwordFromAlert?.trim() || '';
+    
+    console.log('🔐 Contraseña recibida:', currentPassword ? `"${currentPassword}" (${currentPassword.length} caracteres)` : 'vacía');
+    
+    if (!currentPassword) {
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Debes ingresar tu contraseña",
+        buttons: [{ text: "OK", style: "default" }],
+      });
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      const result = await userService.deleteAccount(currentPassword);
+
+      if (result.success) {
+        // Cerrar el modal primero
+        setAlertConfig({ ...alertConfig, visible: false });
+        setDeletePassword('');
+        setIsDeleting(false);
+        
+        // Cerrar sesión y redirigir inmediatamente
+        await logout();
+        router.replace('/(auth)/login');
+        
+        // Mostrar mensaje de éxito estilo iOS después de redirigir
+        setTimeout(() => {
+          setAlertConfig({
+            visible: true,
+            title: "✓ Cuenta Eliminada",
+            message: "Tu cuenta ha sido eliminada exitosamente",
+            buttons: [{ text: "OK", style: "default" }],
+          });
+        }, 500);
+      } else {
+        setIsDeleting(false);
+        setAlertConfig({
+          visible: true,
+          title: "Error",
+          message: result.message || 'No se pudo eliminar la cuenta',
+          buttons: [{ text: "OK", style: "default" }],
+        });
+      }
+    } catch {
+      setIsDeleting(false);
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Ocurrió un error al eliminar la cuenta",
+        buttons: [{ text: "OK", style: "default" }],
+      });
+    }
   };
 
   /**
@@ -347,6 +441,36 @@ export default function ProfileScreen() {
           </View>
         </ProfileSection>
 
+        {/* Zona de Peligro */}
+        <ProfileSection title="Zona de Peligro">
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.dangerRow}
+              onPress={handleDeleteAccount}
+              activeOpacity={0.7}
+            >
+              <View style={styles.dangerIcon}>
+                <Ionicons 
+                  name="trash-outline" 
+                  size={20} 
+                  color={getIOSColor(IOS_COLORS.red, isDark)} 
+                />
+              </View>
+              <View style={styles.infoContent}>
+                <Text style={styles.dangerLabel}>Eliminar Cuenta</Text>
+                <Text style={styles.dangerDescription}>
+                  Eliminar permanentemente tu cuenta y todos los datos
+                </Text>
+              </View>
+              <Ionicons 
+                name="chevron-forward" 
+                size={20} 
+                color={getIOSColor(IOS_COLORS.red, isDark)} 
+              />
+            </TouchableOpacity>
+          </View>
+        </ProfileSection>
+
         {/* Botón de cerrar sesión */}
         <TouchableOpacity
           style={styles.logoutButton}
@@ -370,7 +494,16 @@ export default function ProfileScreen() {
         title={alertConfig.title}
         message={alertConfig.message}
         buttons={alertConfig.buttons}
-        onDismiss={() => setAlertConfig({ ...alertConfig, visible: false })}
+        onDismiss={() => {
+          setAlertConfig({ ...alertConfig, visible: false });
+          setDeletePassword('');
+        }}
+        showInput={alertConfig.title?.includes("Eliminar Cuenta")}
+        inputPlaceholder="Contraseña"
+        inputValue={deletePassword}
+        onInputChange={setDeletePassword}
+        secureTextEntry={true}
+        isLoading={isDeleting}
       />
     </SafeAreaView>
   );
@@ -613,6 +746,32 @@ const createStyles = (isDark: boolean) => {
       ...IOS_TYPOGRAPHY.body,
       color: '#FFFFFF',
       fontWeight: '600',
+    },
+    dangerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: IOS_SPACING.md,
+    },
+    dangerIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: isDark 
+        ? 'rgba(255, 59, 48, 0.15)' 
+        : 'rgba(255, 59, 48, 0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: IOS_SPACING.md,
+    },
+    dangerLabel: {
+      ...IOS_TYPOGRAPHY.body,
+      color: getIOSColor(colors.red, isDark),
+      fontWeight: '600',
+    },
+    dangerDescription: {
+      ...IOS_TYPOGRAPHY.caption1,
+      color: getIOSColor(colors.label.secondary, isDark),
+      marginTop: 2,
     },
     footer: {
       ...IOS_TYPOGRAPHY.caption1,

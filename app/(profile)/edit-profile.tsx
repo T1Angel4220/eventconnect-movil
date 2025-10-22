@@ -242,6 +242,8 @@ export default function EditProfileScreen() {
         if (imageResult.success && imageResult.data) {
           console.log('✅ Imagen subida exitosamente:', imageResult.data.profile_image);
           setProfileImage(imageResult.data.profile_image);
+          // Limpiar la imagen temporal después de subirla exitosamente
+          setTempImageUri(undefined);
         } else {
           console.error('❌ Error al subir imagen:', imageResult.message);
           Alert.alert('Advertencia', imageResult.message || 'No se pudo actualizar la foto de perfil');
