@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,19 +7,18 @@ import {
   Platform,
   ScrollView,
   TouchableOpacity,
-  Alert,
   SafeAreaView,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Button, Input, PasswordStrength } from "@/src/components";
-import { validateEmail, validatePassword, getPasswordStrength } from "@/src/utils";
+import { Button, Input, PasswordStrength, IOSAlert, AlertButton } from "@/src/components";
+import { validateEmail, validatePassword } from "@/src/utils";
 import { authService } from "@/src/services";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/hooks";
-import { IOS_TYPOGRAPHY, IOS_SPACING, IOS_RADIUS, IOS_COLORS, getIOSColor } from "@/src/constants/iosStyles";
+import { IOS_SPACING, IOS_COLORS, getIOSColor, IOS_RADIUS } from "@/src/constants/iosStyles";
 
 /**
- * Pantalla de Registro - Estilo iOS/Apple
+ * Pantalla de Registro - Diseño iOS Nativo con Validación en Tiempo Real
  */
 export default function RegisterScreen() {
   const router = useRouter();
@@ -41,69 +40,180 @@ export default function RegisterScreen() {
     confirmPassword: "",
   });
 
+  // Estado "touched" para mostrar errores solo después de interacción
+  const [touched, setTouched] = useState({
+    firstName: false,
+    lastName: false,
+    email: false,
+    password: false,
+    confirmPassword: false,
+  });
+
   const [isLoading, setIsLoading] = useState(false);
 
+  // Estado para la alerta iOS
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons: AlertButton[];
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    buttons: [{ text: "OK", style: "default" }],
+  });
+
   const styles = createStyles(isDark);
-  const passwordStrength = getPasswordStrength(formData.password);
+
+  /**
+   * Validación en tiempo real del email
+   */
+  useEffect(() => {
+    if (touched.email && formData.email) {
+      const validation = validateEmail(formData.email);
+      if (!validation.isValid) {
+        setErrors((prev) => ({ ...prev, email: validation.error || "" }));
+      } else {
+        setErrors((prev) => ({ ...prev, email: "" }));
+      }
+    }
+  }, [formData.email, touched.email]);
+
+  /**
+   * Validación en tiempo real de la contraseña
+   */
+  useEffect(() => {
+    if (touched.password && formData.password) {
+      const validation = validatePassword(formData.password);
+      if (!validation.isValid) {
+        setErrors((prev) => ({ ...prev, password: validation.error || "" }));
+      } else {
+        setErrors((prev) => ({ ...prev, password: "" }));
+      }
+    }
+  }, [formData.password, touched.password]);
+
+  /**
+   * Validación en tiempo real de confirmación de contraseña
+   */
+  useEffect(() => {
+    if (touched.confirmPassword && formData.confirmPassword) {
+      if (formData.password !== formData.confirmPassword) {
+        setErrors((prev) => ({ ...prev, confirmPassword: "Las contraseñas no coinciden" }));
+      } else {
+        setErrors((prev) => ({ ...prev, confirmPassword: "" }));
+      }
+    }
+  }, [formData.password, formData.confirmPassword, touched.confirmPassword]);
+
+  /**
+   * Validación en tiempo real de nombre
+   */
+  useEffect(() => {
+    if (touched.firstName && !formData.firstName.trim()) {
+      setErrors((prev) => ({ ...prev, firstName: "El nombre es requerido" }));
+    } else {
+      setErrors((prev) => ({ ...prev, firstName: "" }));
+    }
+  }, [formData.firstName, touched.firstName]);
+
+  /**
+   * Validación en tiempo real de apellido
+   */
+  useEffect(() => {
+    if (touched.lastName && !formData.lastName.trim()) {
+      setErrors((prev) => ({ ...prev, lastName: "El apellido es requerido" }));
+    } else {
+      setErrors((prev) => ({ ...prev, lastName: "" }));
+    }
+  }, [formData.lastName, touched.lastName]);
+
+  /**
+   * Verifica si la contraseña es válida (todos los criterios)
+   */
+  const isPasswordValid = (pwd: string): boolean => {
+    if (!pwd) return false;
+    
+    const hasMinLength = pwd.length >= 8;
+    const hasLowerCase = /[a-z]/.test(pwd);
+    const hasUpperCase = /[A-Z]/.test(pwd);
+    const hasNumber = /\d/.test(pwd);
+    
+    return hasMinLength && hasLowerCase && hasUpperCase && hasNumber;
+  };
+
+  /**
+   * Verifica si el formulario es válido
+   */
+  const isFormValid = 
+    formData.firstName.trim() !== "" &&
+    formData.lastName.trim() !== "" &&
+    validateEmail(formData.email).isValid &&
+    isPasswordValid(formData.password) &&
+    formData.confirmPassword === formData.password &&
+    formData.password &&
+    formData.confirmPassword;
 
   /**
    * Actualiza un campo del formulario
    */
   const updateField = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    setErrors((prev) => ({ ...prev, [field]: "" }));
+    
+    // Marcar como tocado
+    if (!touched[field]) {
+      setTouched((prev) => ({ ...prev, [field]: true }));
+    }
   };
 
   /**
-   * Valida el formulario
+   * Maneja el blur de los inputs
    */
-  const validateForm = (): boolean => {
-    const newErrors = {
-      firstName: "",
-      lastName: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-    };
-
-    let isValid = true;
-
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = "El nombre es requerido";
-      isValid = false;
-    }
-
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = "El apellido es requerido";
-      isValid = false;
-    }
-
-    const emailValidation = validateEmail(formData.email);
-    if (!emailValidation.isValid) {
-      newErrors.email = emailValidation.error || "";
-      isValid = false;
-    }
-
-    const passwordValidation = validatePassword(formData.password);
-    if (!passwordValidation.isValid) {
-      newErrors.password = passwordValidation.error || "";
-      isValid = false;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Las contraseñas no coinciden";
-      isValid = false;
-    }
-
-    setErrors(newErrors);
-    return isValid;
+  const handleBlur = (field: keyof typeof touched) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
   };
 
   /**
    * Maneja el registro
    */
   const handleRegister = async () => {
-    if (!validateForm()) return;
+    // Marcar todos los campos como tocados
+    setTouched({
+      firstName: true,
+      lastName: true,
+      email: true,
+      password: true,
+      confirmPassword: true,
+    });
+
+    // Validar todo antes de enviar
+    if (!formData.firstName.trim()) {
+      setErrors((prev) => ({ ...prev, firstName: "El nombre es requerido" }));
+      return;
+    }
+
+    if (!formData.lastName.trim()) {
+      setErrors((prev) => ({ ...prev, lastName: "El apellido es requerido" }));
+      return;
+    }
+
+    const emailValidation = validateEmail(formData.email);
+    if (!emailValidation.isValid) {
+      setErrors((prev) => ({ ...prev, email: emailValidation.error || "" }));
+      return;
+    }
+
+    const passwordValidation = validatePassword(formData.password);
+    if (!passwordValidation.isValid) {
+      setErrors((prev) => ({ ...prev, password: passwordValidation.error || "" }));
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setErrors((prev) => ({ ...prev, confirmPassword: "Las contraseñas no coinciden" }));
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -116,21 +226,33 @@ export default function RegisterScreen() {
       });
 
       if (result.success) {
-        Alert.alert(
-          "¡Registro Exitoso!",
-          "Tu cuenta ha sido creada. Ya puedes iniciar sesión.",
-          [
+        setAlertConfig({
+          visible: true,
+          title: "¡Registro Exitoso!",
+          message: "Tu cuenta ha sido creada. Ya puedes iniciar sesión.",
+          buttons: [
             {
               text: "Iniciar Sesión",
+              style: "default",
               onPress: () => router.replace("/(auth)/login"),
             },
-          ]
-        );
+          ],
+        });
       } else {
-        Alert.alert("Error", result.message);
+        setAlertConfig({
+          visible: true,
+          title: "Error",
+          message: result.message,
+          buttons: [{ text: "OK", style: "default" }],
+        });
       }
     } catch (error) {
-      Alert.alert("Error", "Ocurrió un error durante el registro");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Ocurrió un error durante el registro",
+        buttons: [{ text: "OK", style: "default" }],
+      });
       console.error("Error en registro:", error);
     } finally {
       setIsLoading(false);
@@ -147,45 +269,48 @@ export default function RegisterScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          bounces={false}
         >
           {/* Botón de volver estilo iOS */}
           <TouchableOpacity
             onPress={() => router.back()}
             style={styles.backButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            activeOpacity={0.6}
           >
             <Ionicons 
               name="chevron-back" 
               size={28} 
               color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
             />
-            <Text style={styles.backText}>Volver</Text>
+            <Text style={styles.backText}>Atrás</Text>
           </TouchableOpacity>
 
           {/* Espaciador */}
-          <View style={styles.spacer} />
+          <View style={styles.topSpacer} />
 
-          {/* Logo */}
-          <View style={styles.logoContainer}>
+          {/* Ícono */}
+          <View style={styles.iconSection}>
             <View style={styles.iconCircle}>
               <Ionicons 
                 name="person-add" 
-                size={36} 
+                size={44} 
                 color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
               />
             </View>
           </View>
 
           {/* Título */}
-          <View style={styles.headerContainer}>
+          <View style={styles.headerSection}>
             <Text style={styles.title}>Crear Cuenta</Text>
             <Text style={styles.subtitle}>
-              Completa tus datos para registrarte
+              Completa tus datos para registrarte en Event Connect
             </Text>
           </View>
 
           {/* Formulario */}
           <View style={styles.formContainer}>
+            {/* Fila de nombre y apellido */}
             <View style={styles.rowContainer}>
               <View style={styles.halfWidth}>
                 <Input
@@ -193,7 +318,8 @@ export default function RegisterScreen() {
                   placeholder="Tu nombre"
                   value={formData.firstName}
                   onChangeText={(text) => updateField("firstName", text)}
-                  error={errors.firstName}
+                  onBlur={() => handleBlur("firstName")}
+                  error={touched.firstName ? errors.firstName : ""}
                   icon="person-outline"
                   autoCapitalize="words"
                 />
@@ -205,66 +331,91 @@ export default function RegisterScreen() {
                   placeholder="Tu apellido"
                   value={formData.lastName}
                   onChangeText={(text) => updateField("lastName", text)}
-                  error={errors.lastName}
+                  onBlur={() => handleBlur("lastName")}
+                  error={touched.lastName ? errors.lastName : ""}
                   icon="person-outline"
                   autoCapitalize="words"
                 />
               </View>
             </View>
 
+            {/* Email */}
             <Input
               label="Correo electrónico"
               placeholder="tu@email.com"
               value={formData.email}
               onChangeText={(text) => updateField("email", text)}
-              error={errors.email}
+              onBlur={() => handleBlur("email")}
+              error={touched.email ? errors.email : ""}
               icon="mail-outline"
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
             />
 
-            <Input
-              label="Contraseña"
-              placeholder="Mínimo 8 caracteres"
-              value={formData.password}
-              onChangeText={(text) => updateField("password", text)}
-              error={errors.password}
-              icon="lock-closed-outline"
-              isPassword
-            />
+            {/* Contraseña */}
+            <View>
+              <Input
+                label="Contraseña"
+                placeholder="Mínimo 8 caracteres"
+                value={formData.password}
+                onChangeText={(text) => updateField("password", text)}
+                onBlur={() => handleBlur("password")}
+                error={touched.password ? errors.password : ""}
+                icon="lock-closed-outline"
+                isPassword
+              />
 
-            {formData.password.length > 0 && (
-              <PasswordStrength strength={passwordStrength} />
-            )}
+              {/* Mostrar PasswordStrength solo si hay texto */}
+              {formData.password.length > 0 && (
+                <PasswordStrength password={formData.password} />
+              )}
+            </View>
 
+            {/* Confirmar contraseña */}
             <Input
               label="Confirmar contraseña"
               placeholder="Confirma tu contraseña"
               value={formData.confirmPassword}
               onChangeText={(text) => updateField("confirmPassword", text)}
-              error={errors.confirmPassword}
+              onBlur={() => handleBlur("confirmPassword")}
+              error={touched.confirmPassword ? errors.confirmPassword : ""}
               icon="lock-closed-outline"
               isPassword
             />
+
+            {/* Info card */}
+            <View style={styles.infoCard}>
+              <Ionicons 
+                name="information-circle" 
+                size={20} 
+                color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+                style={styles.infoIcon}
+              />
+              <Text style={styles.infoText}>
+                Al registrarte, aceptas los términos y condiciones de Event Connect.
+              </Text>
+            </View>
 
             {/* Botón de registro */}
             <Button
               title="Crear Cuenta"
               onPress={handleRegister}
               loading={isLoading}
+              disabled={!isFormValid}
               fullWidth
               style={styles.registerButton}
             />
 
-            {/* Login link */}
-            <View style={styles.loginContainer}>
-              <Text style={styles.loginText}>¿Ya tienes cuenta?</Text>
+            {/* Login link con salto de línea */}
+            <View style={styles.loginSection}>
+              <Text style={styles.loginQuestion}>¿Ya tienes cuenta?</Text>
               <TouchableOpacity 
                 onPress={() => router.push("/(auth)/login")}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                activeOpacity={0.6}
               >
-                <Text style={styles.loginLink}>Inicia Sesión</Text>
+                <Text style={styles.loginLink}>Iniciar Sesión</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -273,6 +424,15 @@ export default function RegisterScreen() {
           <View style={styles.bottomSpacer} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Alerta iOS */}
+      <IOSAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={() => setAlertConfig({ ...alertConfig, visible: false })}
+      />
     </SafeAreaView>
   );
 }
@@ -290,53 +450,68 @@ const createStyles = (isDark: boolean) => {
     },
     scrollContent: {
       flexGrow: 1,
-      paddingHorizontal: IOS_SPACING.lg,
-      paddingBottom: IOS_SPACING.xl,
+      paddingHorizontal: 20,
     },
+    
+    // Back Button
     backButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: IOS_SPACING.sm,
-      marginTop: IOS_SPACING.sm,
-      marginLeft: -IOS_SPACING.sm,
+      paddingVertical: 8,
+      marginTop: 25,
+      marginLeft: -8,
     },
     backText: {
-      ...IOS_TYPOGRAPHY.body,
+      fontSize: 17,
+      fontWeight: '400',
       color: getIOSColor(colors.systemBlue, isDark),
-      marginLeft: 2,
+      marginLeft: 4,
+      letterSpacing: -0.41,
     },
-    spacer: {
-      height: IOS_SPACING.lg,
+    topSpacer: {
+      height: 16,
     },
-    logoContainer: {
+    
+    // Icon Section
+    iconSection: {
       alignItems: 'center',
-      marginBottom: IOS_SPACING.lg,
+      marginBottom: 24,
     },
     iconCircle: {
-      width: 72,
-      height: 72,
-      borderRadius: 36,
+      width: 88,
+      height: 88,
+      borderRadius: 44,
       backgroundColor: isDark 
         ? 'rgba(10, 132, 255, 0.15)' 
         : 'rgba(0, 122, 255, 0.1)',
       alignItems: 'center',
       justifyContent: 'center',
     },
-    headerContainer: {
+    
+    // Header Section
+    headerSection: {
       alignItems: 'center',
-      marginBottom: IOS_SPACING.xl,
+      marginBottom: 32,
+      paddingHorizontal: 8,
     },
     title: {
-      ...IOS_TYPOGRAPHY.largeTitle,
+      fontSize: 28,
+      fontWeight: '700',
       color: getIOSColor(colors.label.primary, isDark),
-      marginBottom: IOS_SPACING.sm,
+      marginBottom: 12,
       textAlign: 'center',
+      letterSpacing: 0.36,
     },
     subtitle: {
-      ...IOS_TYPOGRAPHY.body,
+      fontSize: 15,
+      fontWeight: '400',
       color: getIOSColor(colors.label.secondary, isDark),
       textAlign: 'center',
+      lineHeight: 22,
+      letterSpacing: -0.24,
     },
+    
+    // Form
     formContainer: {
       gap: IOS_SPACING.md,
     },
@@ -347,27 +522,57 @@ const createStyles = (isDark: boolean) => {
     halfWidth: {
       flex: 1,
     },
+    
+    // Info Card
+    infoCard: {
+      flexDirection: 'row',
+      backgroundColor: isDark
+        ? 'rgba(142, 142, 147, 0.12)'
+        : 'rgba(120, 120, 128, 0.08)',
+      borderRadius: IOS_RADIUS.medium,
+      padding: 16,
+      marginTop: IOS_SPACING.xs,
+    },
+    infoIcon: {
+      marginRight: 12,
+      marginTop: 2,
+    },
+    infoText: {
+      flex: 1,
+      fontSize: 13,
+      fontWeight: '400',
+      color: getIOSColor(colors.label.secondary, isDark),
+      lineHeight: 18,
+      letterSpacing: -0.08,
+    },
+    
     registerButton: {
       marginTop: IOS_SPACING.md,
     },
-    loginContainer: {
-      flexDirection: 'row',
-      justifyContent: 'center',
+    
+    // Login Section con salto de línea
+    loginSection: {
       alignItems: 'center',
-      marginTop: IOS_SPACING.lg,
-      gap: IOS_SPACING.xs,
+      gap: 8,
+      marginTop: IOS_SPACING.md,
     },
-    loginText: {
-      ...IOS_TYPOGRAPHY.body,
+    loginQuestion: {
+      fontSize: 15,
+      fontWeight: '400',
       color: getIOSColor(colors.label.secondary, isDark),
+      letterSpacing: -0.24,
+      textAlign: 'center',
     },
     loginLink: {
-      ...IOS_TYPOGRAPHY.body,
-      color: getIOSColor(colors.systemBlue, isDark),
+      fontSize: 15,
       fontWeight: '600',
+      color: getIOSColor(colors.systemBlue, isDark),
+      letterSpacing: -0.24,
+      textAlign: 'center',
     },
+    
     bottomSpacer: {
-      height: IOS_SPACING.xl,
+      height: 32,
     },
   });
 };

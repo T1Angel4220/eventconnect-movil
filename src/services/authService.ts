@@ -123,7 +123,7 @@ class AuthService {
   /**
    * Restablece la contraseña con el código verificado
    */
-  async resetPassword(data: ResetPasswordData & { resetId?: number }): Promise<ResetPasswordResponse> {
+  async resetPassword(data: { email: string; resetId: number; new_password: string }): Promise<ResetPasswordResponse> {
     try {
       const response = await api.post('/auth/reset-password', {
         resetId: data.resetId,

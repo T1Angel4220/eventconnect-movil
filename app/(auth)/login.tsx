@@ -7,15 +7,15 @@ import {
   Platform,
   ScrollView,
   TouchableOpacity,
-  Alert,
   SafeAreaView,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Button, Input } from "@/src/components";
+import { Button, Input, IOSAlert, AlertButton } from "@/src/components";
 import { useAuth, useTheme } from "@/src/hooks";
 import { validateEmail } from "@/src/utils";
 import { Ionicons } from "@expo/vector-icons";
-import { IOS_COLORS, IOS_SHADOWS, getIOSColor } from "@/src/constants/iosStyles";
+import { IOS_COLORS, getIOSColor } from "@/src/constants/iosStyles";
 
 /**
  * Pantalla de Login - Diseño iOS Nativo
@@ -30,6 +30,19 @@ export default function LoginScreen() {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Estado para la alerta iOS
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons: AlertButton[];
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    buttons: [{ text: "OK", style: "default" }],
+  });
 
   const styles = createStyles(isDark);
 
@@ -71,11 +84,21 @@ export default function LoginScreen() {
       if (result.success) {
         router.replace("/(tabs)");
       } else {
-        Alert.alert("Error de Autenticación", result.message);
+        setAlertConfig({
+          visible: true,
+          title: "Error de Autenticación",
+          message: result.message,
+          buttons: [{ text: "OK", style: "default" }],
+        });
         setIsLoading(false);
       }
     } catch (error) {
-      Alert.alert("Error", "Ocurrió un error inesperado. Intenta nuevamente.");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Ocurrió un error inesperado. Intenta nuevamente.",
+        buttons: [{ text: "OK", style: "default" }],
+      });
       console.error("Error en login:", error);
       setIsLoading(false);
     }
@@ -98,43 +121,46 @@ export default function LoginScreen() {
 
           {/* Logo y Branding */}
           <View style={styles.brandContainer}>
-            {/* Toggle de tema */}
-            <TouchableOpacity
-              onPress={toggleTheme}
-              style={styles.themeToggle}
-              hitSlop={{ top: 10, bottom: 10, left: 12, right: 12 }}
-              activeOpacity={0.6}
-            >
-              <Ionicons 
-                name={theme === 'system' ? 'phone-portrait-outline' : isDark ? "sunny" : "moon"} 
-                size={20} 
-                color={getIOSColor(IOS_COLORS.label.secondary, isDark)} 
-              />
-            </TouchableOpacity>
-
-            <View style={styles.logoContainer}>
-              <View style={styles.logoBackground}>
-                <Ionicons 
-                  name="calendar" 
-                  size={48} 
-                  color="#FFFFFF"
-                />
-              </View>
-            </View>
-            
-            <Text style={styles.appName}>Event Connect</Text>
-            <Text style={styles.appTagline}>Sistema de Gestión de Eventos</Text>
+            <Image
+              source={
+                isDark
+                  ? require("@/src/img/logo_light-f.png")
+                  : require("@/src/img/logo_dark-f.png")
+              }
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <Text style={styles.brandTitle}>Event Connect</Text>
+            <Text style={styles.brandSubtitle}>Sistema de Gestión de Eventos</Text>
           </View>
 
-          {/* Título de la pantalla */}
-          <Text style={styles.screenTitle}>Iniciar Sesión</Text>
+          {/* Toggle tema - ciclo entre system/light/dark */}
+          <TouchableOpacity
+            onPress={toggleTheme}
+            style={styles.themeToggle}
+            activeOpacity={0.6}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Ionicons
+              name={
+                theme === 'system' 
+                  ? 'phone-portrait-outline' 
+                  : theme === 'dark' 
+                  ? 'moon' 
+                  : 'sunny'
+              }
+              size={22}
+              color={getIOSColor(IOS_COLORS.systemBlue, isDark)}
+            />
+          </TouchableOpacity>
 
-          {/* Formulario */}
+          {/* Form Section */}
           <View style={styles.formSection}>
+            {/* Email Input */}
             <View style={styles.inputGroup}>
               <Input
                 label="Correo electrónico"
-                placeholder="correo@ejemplo.com"
+                placeholder="tu@email.com"
                 value={email}
                 onChangeText={(text) => {
                   setEmail(text);
@@ -145,14 +171,14 @@ export default function LoginScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
-                textContentType="emailAddress"
               />
             </View>
 
+            {/* Password Input */}
             <View style={styles.inputGroup}>
               <Input
                 label="Contraseña"
-                placeholder="Ingresa tu contraseña"
+                placeholder="Tu contraseña"
                 value={password}
                 onChangeText={(text) => {
                   setPassword(text);
@@ -161,45 +187,42 @@ export default function LoginScreen() {
                 error={passwordError}
                 icon="lock-closed-outline"
                 isPassword
-                textContentType="password"
               />
             </View>
 
-            {/* Link de contraseña olvidada */}
+            {/* Forgot Password Link */}
             <View style={styles.forgotContainer}>
               <TouchableOpacity
                 onPress={() => router.push("/(auth)/forgot-password")}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 activeOpacity={0.6}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
                 <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Botón de login */}
-            <View style={styles.buttonContainer}>
-              <Button
-                title={isLoading ? "Iniciando..." : "Iniciar Sesión"}
-                onPress={handleLogin}
-                loading={isLoading}
-                fullWidth
-              />
-            </View>
+            {/* Login Button */}
+            <Button
+              title="Iniciar Sesión"
+              onPress={handleLogin}
+              loading={isLoading}
+              fullWidth
+            />
 
             {/* Divider */}
-            <View style={styles.dividerRow}>
+            <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>O</Text>
+              <Text style={styles.dividerText}>o</Text>
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Link de registro */}
-            <View style={styles.registerRow}>
+            {/* Register Link con salto de línea */}
+            <View style={styles.registerSection}>
               <Text style={styles.registerQuestion}>¿No tienes una cuenta?</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => router.push("/(auth)/register")}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 activeOpacity={0.6}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
                 <Text style={styles.registerLink}>Regístrate gratis</Text>
               </TouchableOpacity>
@@ -210,13 +233,22 @@ export default function LoginScreen() {
           <View style={styles.bottomSpacer} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Alerta iOS */}
+      <IOSAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={() => setAlertConfig({ ...alertConfig, visible: false })}
+      />
     </SafeAreaView>
   );
 }
 
 const createStyles = (isDark: boolean) => {
   const colors = isDark ? IOS_COLORS : IOS_COLORS;
-  
+
   return StyleSheet.create({
     safeArea: {
       flex: 1,
@@ -230,62 +262,42 @@ const createStyles = (isDark: boolean) => {
       paddingHorizontal: 20,
     },
     topSpacer: {
-      height: 16,
+      height: 100,
     },
-    
-    // Branding Section
+
+    // Brand Section
     brandContainer: {
       alignItems: 'center',
-      marginBottom: 40,
-      position: 'relative',
+      marginBottom: 32,
     },
+    logo: {
+      width: 120,
+      height: 120,
+      marginBottom: 24,
+    },
+    brandTitle: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: getIOSColor(colors.label.primary, isDark),
+      letterSpacing: 0.36,
+      textAlign: 'center',
+    },
+    brandSubtitle: {
+      fontSize: 15,
+      fontWeight: '400',
+      color: getIOSColor(colors.label.secondary, isDark),
+      letterSpacing: -0.24,
+      textAlign: 'center',
+      marginTop: 4,
+    },
+
+    // Theme Toggle
     themeToggle: {
       position: 'absolute',
-      top: 20,
-      right: 0,
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: isDark
-        ? 'rgba(142, 142, 147, 0.12)'
-        : 'rgba(120, 120, 128, 0.08)',
-    },
-    logoContainer: {
-      marginBottom: 80,
-    },
-    logoBackground: {
-      width: 80,
-      top:60,
-      height: 80,
-      borderRadius: 18,
-      backgroundColor: getIOSColor(IOS_COLORS.systemBlue, isDark),
-      alignItems: 'center',
-      justifyContent: 'center',
-      ...IOS_SHADOWS.medium,
-    },
-    appName: {
-      fontSize: 26,
-      fontWeight: '700',
-      color: getIOSColor(colors.label.primary, isDark),
-      marginBottom: 4,
-      letterSpacing: 0.2,
-    },
-    appTagline: {
-      fontSize: 13,
-      fontWeight: '400',
-      color: getIOSColor(colors.label.tertiary, isDark),
-      letterSpacing: -0.08,
-    },
-    
-    // Screen Title
-    screenTitle: {
-      fontSize: 32,
-      fontWeight: '700',
-      color: getIOSColor(colors.label.primary, isDark),
-      marginBottom: 32,
-      letterSpacing: 0.35,
+      top: 25,
+      right: 20,
+      padding: 8,
+      borderRadius: 20,
     },
     
     // Form Section
@@ -293,7 +305,7 @@ const createStyles = (isDark: boolean) => {
       gap: 0,
     },
     inputGroup: {
-      marginBottom: 16,
+      marginBottom: 20,
     },
     forgotContainer: {
       alignItems: 'flex-end',
@@ -306,49 +318,48 @@ const createStyles = (isDark: boolean) => {
       color: getIOSColor(colors.systemBlue, isDark),
       letterSpacing: -0.24,
     },
-    buttonContainer: {
-      marginBottom: 24,
-    },
-    
+
     // Divider
-    dividerRow: {
+    divider: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginVertical: 20,
+      marginVertical: 24,
+      gap: 12,
     },
     dividerLine: {
       flex: 1,
-      height: 0.5,
-      backgroundColor: getIOSColor(colors.separator.opaque, isDark),
+      height: 1,
+      backgroundColor: isDark
+        ? 'rgba(84, 84, 88, 0.65)'
+        : 'rgba(60, 60, 67, 0.29)',
     },
     dividerText: {
       fontSize: 15,
       fontWeight: '400',
-      color: getIOSColor(colors.label.tertiary, isDark),
-      paddingHorizontal: 16,
+      color: getIOSColor(colors.label.secondary, isDark),
       letterSpacing: -0.24,
     },
-    
-    // Register Section
-    registerRow: {
-      flexDirection: 'row',
-      justifyContent: 'center',
+
+    // Register Section con salto de línea
+    registerSection: {
       alignItems: 'center',
-      gap: 4,
+      gap: 8,
     },
     registerQuestion: {
       fontSize: 15,
       fontWeight: '400',
       color: getIOSColor(colors.label.secondary, isDark),
       letterSpacing: -0.24,
+      textAlign: 'center',
     },
     registerLink: {
       fontSize: 15,
       fontWeight: '600',
       color: getIOSColor(colors.systemBlue, isDark),
       letterSpacing: -0.24,
+      textAlign: 'center',
     },
-    
+
     bottomSpacer: {
       height: 40,
     },

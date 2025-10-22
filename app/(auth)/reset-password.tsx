@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,19 +7,18 @@ import {
   Platform,
   ScrollView,
   TouchableOpacity,
-  Alert,
   SafeAreaView,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { Button, Input, PasswordStrength } from "@/src/components";
-import { validatePassword, getPasswordStrength } from "@/src/utils";
+import { Button, Input, PasswordStrength, IOSAlert, AlertButton } from "@/src/components";
+import { validatePassword } from "@/src/utils";
 import { authService } from "@/src/services";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/hooks";
-import { IOS_TYPOGRAPHY, IOS_SPACING, IOS_RADIUS, IOS_COLORS, getIOSColor } from "@/src/constants/iosStyles";
+import { IOS_SPACING, IOS_COLORS, getIOSColor, IOS_RADIUS } from "@/src/constants/iosStyles";
 
 /**
- * Pantalla de Restablecer Contraseña - Estilo iOS/Apple
+ * Pantalla de Restablecer Contraseña - Diseño iOS Nativo con Validación en Tiempo Real
  */
 export default function ResetPasswordScreen() {
   const router = useRouter();
@@ -35,41 +34,104 @@ export default function ResetPasswordScreen() {
   const [confirmError, setConfirmError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // Estado "touched" para mostrar errores solo después de interacción
+  const [touched, setTouched] = useState({
+    password: false,
+    confirmPassword: false,
+  });
+
+  // Estado para la alerta iOS
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons: AlertButton[];
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    buttons: [{ text: "OK", style: "default" }],
+  });
+
   const styles = createStyles(isDark);
-  const passwordStrength = getPasswordStrength(password);
 
   /**
-   * Valida el formulario
+   * Validación en tiempo real de la contraseña
    */
-  const validateForm = (): boolean => {
-    let isValid = true;
-
-    const passwordValidation = validatePassword(password);
-    if (!passwordValidation.isValid) {
-      setPasswordError(passwordValidation.error || "");
-      isValid = false;
-    } else {
-      setPasswordError("");
+  useEffect(() => {
+    if (touched.password && password) {
+      const validation = validatePassword(password);
+      if (!validation.isValid) {
+        setPasswordError(validation.error || "");
+      } else {
+        setPasswordError("");
+      }
     }
+  }, [password, touched.password]);
 
-    if (password !== confirmPassword) {
-      setConfirmError("Las contraseñas no coinciden");
-      isValid = false;
-    } else {
-      setConfirmError("");
+  /**
+   * Validación en tiempo real de confirmación de contraseña
+   */
+  useEffect(() => {
+    if (touched.confirmPassword && confirmPassword) {
+      if (password !== confirmPassword) {
+        setConfirmError("Las contraseñas no coinciden");
+      } else {
+        setConfirmError("");
+      }
     }
+  }, [password, confirmPassword, touched.confirmPassword]);
 
-    return isValid;
+  /**
+   * Verifica si todos los criterios de contraseña se cumplen
+   */
+  const isPasswordValid = (pwd: string): boolean => {
+    if (!pwd) return false;
+    
+    const hasMinLength = pwd.length >= 8;
+    const hasLowerCase = /[a-z]/.test(pwd);
+    const hasUpperCase = /[A-Z]/.test(pwd);
+    const hasNumber = /\d/.test(pwd);
+    
+    return hasMinLength && hasLowerCase && hasUpperCase && hasNumber;
   };
+
+  /**
+   * Verifica si el formulario es válido
+   */
+  const isFormValid = 
+    isPasswordValid(password) && 
+    confirmPassword === password &&
+    password && 
+    confirmPassword;
 
   /**
    * Maneja el cambio de contraseña
    */
   const handleResetPassword = async () => {
-    if (!validateForm()) return;
+    // Marcar todos los campos como tocados
+    setTouched({ password: true, confirmPassword: true });
+
+    // Validar contraseña
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      setPasswordError(passwordValidation.error || "");
+      return;
+    }
+
+    // Validar confirmación
+    if (password !== confirmPassword) {
+      setConfirmError("Las contraseñas no coinciden");
+      return;
+    }
 
     if (!email || !resetId) {
-      Alert.alert("Error", "Datos de recuperación no válidos");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Datos de recuperación no válidos",
+        buttons: [{ text: "OK", style: "default" }],
+      });
       return;
     }
 
@@ -79,29 +141,48 @@ export default function ResetPasswordScreen() {
       const result = await authService.resetPassword({
         email,
         resetId,
-        newPassword: password,
+        new_password: password,
       });
 
       if (result.success) {
-        Alert.alert(
-          "¡Contraseña Actualizada!",
-          "Tu contraseña ha sido cambiada exitosamente. Ahora puedes iniciar sesión.",
-          [
+        setAlertConfig({
+          visible: true,
+          title: "¡Contraseña Actualizada!",
+          message: "Tu contraseña ha sido cambiada exitosamente. Ahora puedes iniciar sesión.",
+          buttons: [
             {
               text: "Iniciar Sesión",
+              style: "default",
               onPress: () => router.replace("/(auth)/login"),
             },
-          ]
-        );
+          ],
+        });
       } else {
-        Alert.alert("Error", result.message);
+        setAlertConfig({
+          visible: true,
+          title: "Error",
+          message: result.message,
+          buttons: [{ text: "OK", style: "default" }],
+        });
       }
     } catch (error) {
-      Alert.alert("Error", "Ocurrió un error al cambiar la contraseña");
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Ocurrió un error al cambiar la contraseña",
+        buttons: [{ text: "OK", style: "default" }],
+      });
       console.error("Error en reset password:", error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  /**
+   * Maneja el blur de los inputs
+   */
+  const handleBlur = (field: "password" | "confirmPassword") => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
   };
 
   return (
@@ -114,37 +195,39 @@ export default function ResetPasswordScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          bounces={false}
         >
           {/* Botón de volver estilo iOS */}
           <TouchableOpacity
             onPress={() => router.back()}
             style={styles.backButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            activeOpacity={0.6}
           >
             <Ionicons 
               name="chevron-back" 
               size={28} 
               color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
             />
-            <Text style={styles.backText}>Volver</Text>
+            <Text style={styles.backText}>Atrás</Text>
           </TouchableOpacity>
 
           {/* Espaciador */}
-          <View style={styles.spacer} />
+          <View style={styles.topSpacer} />
 
           {/* Icono central */}
-          <View style={styles.iconContainer}>
+          <View style={styles.iconSection}>
             <View style={styles.iconCircle}>
               <Ionicons 
                 name="lock-closed" 
-                size={44} 
+                size={48} 
                 color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
               />
             </View>
           </View>
 
           {/* Título y descripción */}
-          <View style={styles.headerContainer}>
+          <View style={styles.headerSection}>
             <Text style={styles.title}>Crear Nueva Contraseña</Text>
             <Text style={styles.subtitle}>
               Tu nueva contraseña debe ser diferente a las anteriores
@@ -153,32 +236,43 @@ export default function ResetPasswordScreen() {
 
           {/* Formulario */}
           <View style={styles.formContainer}>
-            <Input
-              label="Nueva contraseña"
-              placeholder="Mínimo 8 caracteres"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                setPasswordError("");
-              }}
-              error={passwordError}
-              icon="lock-closed-outline"
-              isPassword
-            />
+            {/* Input de nueva contraseña */}
+            <View>
+              <Input
+                label="Nueva contraseña"
+                placeholder="Mínimo 8 caracteres"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (!touched.password) {
+                    setTouched((prev) => ({ ...prev, password: true }));
+                  }
+                }}
+                onBlur={() => handleBlur("password")}
+                error={touched.password ? passwordError : ""}
+                icon="lock-closed-outline"
+                isPassword
+              />
 
-            {password.length > 0 && (
-              <PasswordStrength strength={passwordStrength} />
-            )}
+              {/* Mostrar PasswordStrength solo si hay texto */}
+              {password.length > 0 && (
+                <PasswordStrength password={password} />
+              )}
+            </View>
 
+            {/* Input de confirmar contraseña */}
             <Input
               label="Confirmar contraseña"
               placeholder="Confirma tu nueva contraseña"
               value={confirmPassword}
               onChangeText={(text) => {
                 setConfirmPassword(text);
-                setConfirmError("");
+                if (!touched.confirmPassword) {
+                  setTouched((prev) => ({ ...prev, confirmPassword: true }));
+                }
               }}
-              error={confirmError}
+              onBlur={() => handleBlur("confirmPassword")}
+              error={touched.confirmPassword ? confirmError : ""}
               icon="lock-closed-outline"
               isPassword
             />
@@ -187,12 +281,12 @@ export default function ResetPasswordScreen() {
             <View style={styles.infoCard}>
               <Ionicons 
                 name="information-circle" 
-                size={18} 
+                size={20} 
                 color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
                 style={styles.infoIcon}
               />
               <Text style={styles.infoText}>
-                Usa al menos 8 caracteres con una combinación de letras, números y símbolos.
+                Usa al menos 8 caracteres con una combinación de letras mayúsculas, minúsculas y números.
               </Text>
             </View>
 
@@ -201,24 +295,37 @@ export default function ResetPasswordScreen() {
               title="Restablecer Contraseña"
               onPress={handleResetPassword}
               loading={isLoading}
+              disabled={!isFormValid}
               fullWidth
               style={styles.resetButton}
             />
 
             {/* Volver al login */}
-            <TouchableOpacity 
-              onPress={() => router.replace("/(auth)/login")}
-              style={styles.loginButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text style={styles.loginLink}>Volver al inicio de sesión</Text>
-            </TouchableOpacity>
+            <View style={styles.loginSection}>
+              <Text style={styles.loginQuestion}>¿Recordaste tu contraseña?</Text>
+              <TouchableOpacity 
+                onPress={() => router.replace("/(auth)/login")}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                activeOpacity={0.6}
+              >
+                <Text style={styles.loginLink}>Iniciar Sesión</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Espaciador inferior */}
           <View style={styles.bottomSpacer} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Alerta iOS */}
+      <IOSAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={() => setAlertConfig({ ...alertConfig, visible: false })}
+      />
     </SafeAreaView>
   );
 }
@@ -236,27 +343,32 @@ const createStyles = (isDark: boolean) => {
     },
     scrollContent: {
       flexGrow: 1,
-      paddingHorizontal: IOS_SPACING.lg,
-      paddingBottom: IOS_SPACING.xl,
+      paddingHorizontal: 20,
     },
+    
+    // Back Button
     backButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: IOS_SPACING.sm,
-      marginTop: IOS_SPACING.sm,
-      marginLeft: -IOS_SPACING.sm,
+      paddingVertical: 8,
+      marginTop: 25,
+      marginLeft: -8,
     },
     backText: {
-      ...IOS_TYPOGRAPHY.body,
+      fontSize: 17,
+      fontWeight: '400',
       color: getIOSColor(colors.systemBlue, isDark),
-      marginLeft: 2,
+      marginLeft: 4,
+      letterSpacing: -0.41,
     },
-    spacer: {
-      height: IOS_SPACING.xxxl,
+    topSpacer: {
+      height: 24,
     },
-    iconContainer: {
+    
+    // Icon Section
+    iconSection: {
       alignItems: 'center',
-      marginBottom: IOS_SPACING.xl,
+      marginBottom: 32,
     },
     iconCircle: {
       width: 100,
@@ -268,60 +380,85 @@ const createStyles = (isDark: boolean) => {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    headerContainer: {
+    
+    // Header Section
+    headerSection: {
       alignItems: 'center',
-      marginBottom: IOS_SPACING.xxxl,
-      paddingHorizontal: IOS_SPACING.sm,
+      marginBottom: 36,
+      paddingHorizontal: 8,
     },
     title: {
-      ...IOS_TYPOGRAPHY.largeTitle,
+      fontSize: 28,
+      fontWeight: '700',
       color: getIOSColor(colors.label.primary, isDark),
-      marginBottom: IOS_SPACING.md,
+      marginBottom: 12,
       textAlign: 'center',
+      letterSpacing: 0.36,
     },
     subtitle: {
-      ...IOS_TYPOGRAPHY.body,
+      fontSize: 15,
+      fontWeight: '400',
       color: getIOSColor(colors.label.secondary, isDark),
       textAlign: 'center',
-      lineHeight: 24,
+      lineHeight: 22,
+      letterSpacing: -0.24,
     },
+    
+    // Form
     formContainer: {
       gap: IOS_SPACING.md,
     },
+    
+    // Info Card
     infoCard: {
       flexDirection: 'row',
       backgroundColor: isDark
-        ? 'rgba(142, 142, 147, 0.16)'
-        : 'rgba(120, 120, 128, 0.12)',
+        ? 'rgba(142, 142, 147, 0.12)'
+        : 'rgba(120, 120, 128, 0.08)',
       borderRadius: IOS_RADIUS.medium,
-      padding: IOS_SPACING.md,
+      padding: 16,
       marginTop: IOS_SPACING.sm,
     },
     infoIcon: {
-      marginRight: IOS_SPACING.sm,
-      marginTop: 1,
+      marginRight: 12,
+      marginTop: 2,
     },
     infoText: {
-      ...IOS_TYPOGRAPHY.footnote,
-      color: getIOSColor(colors.label.secondary, isDark),
       flex: 1,
+      fontSize: 13,
+      fontWeight: '400',
+      color: getIOSColor(colors.label.secondary, isDark),
       lineHeight: 18,
+      letterSpacing: -0.08,
     },
+    
     resetButton: {
       marginTop: IOS_SPACING.md,
     },
-    loginButton: {
+    
+    // Login Section
+    loginSection: {
       alignItems: 'center',
-      paddingVertical: IOS_SPACING.md,
+      gap: 8,
       marginTop: IOS_SPACING.sm,
     },
-    loginLink: {
-      ...IOS_TYPOGRAPHY.body,
-      color: getIOSColor(colors.systemBlue, isDark),
-      fontWeight: '600',
+    loginQuestion: {
+      fontSize: 15,
+      fontWeight: '400',
+      color: getIOSColor(colors.label.secondary, isDark),
+      letterSpacing: -0.24,
+      textAlign: 'center',
     },
+    loginLink: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: getIOSColor(colors.systemBlue, isDark),
+      letterSpacing: -0.24,
+      textAlign: 'center',
+    },
+    
     bottomSpacer: {
-      height: IOS_SPACING.xxxl,
+      height: 40,
     },
   });
 };
