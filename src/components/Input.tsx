@@ -1,4 +1,4 @@
-// Componente de input personalizado con soporte para modo oscuro
+// Componente de input estilo iOS/Apple
 
 import React, { useState } from "react";
 import {
@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/hooks";
+import { IOS_COLORS, IOS_SPACING, IOS_RADIUS, IOS_TYPOGRAPHY, getIOSColor } from "@/src/constants/iosStyles";
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -35,53 +36,27 @@ export const Input: React.FC<InputProps> = ({
     setIsPasswordVisible(!isPasswordVisible);
   };
 
-  // Colores dinámicos según el tema
-  const getLabelColor = () => (isDark ? "#ffffff" : "#000000");
-  const getInputBgColor = () => (isDark ? "#ffffff" : "#f3f4f6");
-  const getBorderColor = () => {
-    if (error) return "#ef4444";
-    if (isFocused) return isDark ? "#ffffff" : "#000000";
-    return isDark ? "#4b5563" : "#e5e7eb";
-  };
-  const getIconColor = () => {
-    if (error) return "#ef4444";
-    if (isFocused) return isDark ? "#000000" : "#000000";
-    return "#6b7280";
-  };
-  const getTextColor = () => "#000000"; // Siempre negro porque el input es blanco/gris claro
-  const getPlaceholderColor = () => "#9ca3af";
+  const styles = createStyles(isDark, isFocused, !!error);
 
   return (
     <View style={styles.container}>
       {label && (
-        <Text style={[styles.label, { color: getLabelColor() }]}>{label}</Text>
+        <Text style={styles.label}>{label}</Text>
       )}
       
-      <View
-        style={[
-          styles.inputContainer,
-          {
-            backgroundColor: getInputBgColor(),
-            borderColor: getBorderColor(),
-          },
-        ]}
-      >
+      <View style={styles.inputContainer}>
         {icon && (
           <Ionicons
             name={icon}
             size={20}
-            color={getIconColor()}
+            color={styles.iconColor.color}
             style={styles.icon}
           />
         )}
         
         <TextInput
-          style={[
-            styles.input,
-            { color: getTextColor() },
-            style,
-          ]}
-          placeholderTextColor={getPlaceholderColor()}
+          style={[styles.input, style]}
+          placeholderTextColor={getIOSColor(IOS_COLORS.label.tertiary, isDark)}
           secureTextEntry={isPassword && !isPasswordVisible}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
@@ -97,7 +72,7 @@ export const Input: React.FC<InputProps> = ({
             <Ionicons
               name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
               size={20}
-              color="#6b7280"
+              color={getIOSColor(IOS_COLORS.label.tertiary, isDark)}
             />
           </TouchableOpacity>
         )}
@@ -108,39 +83,65 @@ export const Input: React.FC<InputProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 2,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-  },
-  icon: {
-    marginRight: 8,
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 14,
-    fontSize: 16,
-  },
-  eyeIcon: {
-    padding: 4,
-  },
-  error: {
-    fontSize: 12,
-    color: "#ef4444",
-    marginTop: 6,
-    marginLeft: 4,
-  },
-});
+const createStyles = (isDark: boolean, isFocused: boolean, hasError: boolean) => {
+  const colors = isDark ? IOS_COLORS : IOS_COLORS;
+  
+  let borderColor = getIOSColor(colors.separator.opaque, isDark);
+  let iconColor = getIOSColor(colors.label.secondary, isDark);
+  
+  if (hasError) {
+    borderColor = getIOSColor(colors.red, isDark);
+    iconColor = getIOSColor(colors.red, isDark);
+  } else if (isFocused) {
+    borderColor = getIOSColor(colors.systemBlue, isDark);
+    iconColor = getIOSColor(colors.systemBlue, isDark);
+  }
+
+  return StyleSheet.create({
+    container: {
+      marginBottom: 0,
+    },
+    label: {
+      ...IOS_TYPOGRAPHY.footnote,
+      color: getIOSColor(colors.label.secondary, isDark),
+      marginBottom: IOS_SPACING.xs,
+      paddingLeft: 2,
+    },
+    inputContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: isDark 
+        ? getIOSColor(colors.fill.tertiary, isDark)
+        : getIOSColor(colors.background.secondary, isDark),
+      borderWidth: 1,
+      borderColor: borderColor,
+      borderRadius: IOS_RADIUS.input,
+      paddingHorizontal: IOS_SPACING.md,
+      minHeight: 44, // Mínimo de iOS para touch targets
+    },
+    icon: {
+      marginRight: IOS_SPACING.sm,
+    },
+    iconColor: {
+      color: iconColor,
+    },
+    input: {
+      flex: 1,
+      paddingVertical: IOS_SPACING.sm + 2,
+      ...IOS_TYPOGRAPHY.body,
+      color: getIOSColor(colors.label.primary, isDark),
+    },
+    eyeIcon: {
+      padding: IOS_SPACING.xs,
+      marginLeft: IOS_SPACING.xs,
+    },
+    error: {
+      ...IOS_TYPOGRAPHY.caption1,
+      color: getIOSColor(colors.red, isDark),
+      marginTop: IOS_SPACING.xs,
+      paddingLeft: 2,
+    },
+  });
+};
 
 export default Input;

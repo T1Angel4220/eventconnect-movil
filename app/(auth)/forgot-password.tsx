@@ -8,66 +8,65 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  useColorScheme,
+  SafeAreaView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Button, Input } from "@/src/components";
-import { authService } from "@/src/services";
 import { validateEmail } from "@/src/utils";
+import { authService } from "@/src/services";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "@/src/hooks";
+import { IOS_TYPOGRAPHY, IOS_SPACING, IOS_RADIUS, IOS_COLORS, getIOSColor } from "@/src/constants/iosStyles";
 
 /**
- * Pantalla de Recuperación de Contraseña
- * Solicita el email para enviar código de verificación
+ * Pantalla de Recuperar Contraseña - Estilo iOS/Apple
  */
 export default function ForgotPasswordScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const { isDark } = useTheme();
 
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const styles = createStyles(isDark);
+
   /**
-   * Valida el formulario
+   * Valida el email
    */
   const validateForm = (): boolean => {
-    const emailValidation = validateEmail(email);
-    
-    if (!emailValidation.isValid) {
-      setEmailError(emailValidation.error || "");
+    const validation = validateEmail(email);
+    if (!validation.isValid) {
+      setEmailError(validation.error || "");
       return false;
     }
-    
     setEmailError("");
     return true;
   };
 
   /**
-   * Solicita el código de recuperación
+   * Maneja el envío del código de recuperación
    */
-  const handleRequestCode = async () => {
+  const handleSendCode = async () => {
     if (!validateForm()) return;
 
     try {
       setIsLoading(true);
 
-      const result = await authService.forgotPassword({ email: email.trim().toLowerCase() });
+      const result = await authService.forgotPassword({ email });
 
       if (result.success && result.userId) {
         Alert.alert(
           "¡Código Enviado!",
-          "Revisa tu correo electrónico. Hemos enviado un código de 6 dígitos.",
+          "Revisa tu correo electrónico. Te hemos enviado un código de verificación.",
           [
             {
               text: "Continuar",
               onPress: () => {
-                // Navegar a verificación de código y pasar email y userId
                 router.push({
                   pathname: "/(auth)/verify-code",
                   params: {
-                    email: email.trim().toLowerCase(),
+                    email,
                     userId: result.userId!.toString(),
                   },
                 });
@@ -79,58 +78,62 @@ export default function ForgotPasswordScreen() {
         Alert.alert("Error", result.message);
       }
     } catch (error) {
-      Alert.alert("Error", "Ocurrió un error inesperado");
-      console.error("Error solicitando código:", error);
+      Alert.alert("Error", "Ocurrió un error al enviar el código");
+      console.error("Error en forgot password:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const styles = createStyles(isDark);
-
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        {/* Botón de volver */}
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons 
-            name="arrow-back" 
-            size={24} 
-            color={isDark ? "#ffffff" : "#000000"} 
-          />
-        </TouchableOpacity>
-
-        {/* Header con icono */}
-        <View style={styles.header}>
-          <View style={styles.iconContainer}>
+          {/* Botón de volver estilo iOS */}
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons 
-              name="mail-unread" 
-              size={64} 
-              color={isDark ? "#000000" : "#ffffff"} 
+              name="chevron-back" 
+              size={28} 
+              color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
             />
+            <Text style={styles.backText}>Volver</Text>
+          </TouchableOpacity>
+
+          {/* Espaciador */}
+          <View style={styles.spacer} />
+
+          {/* Icono central */}
+          <View style={styles.iconContainer}>
+            <View style={styles.iconCircle}>
+              <Ionicons 
+                name="key" 
+                size={44} 
+                color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+              />
+            </View>
           </View>
-          <Text style={styles.title}>Event Connect</Text>
-          <Text style={styles.subtitle}>Recuperar Contraseña</Text>
-        </View>
 
-        {/* Card de recuperación */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>¿Olvidaste tu contraseña?</Text>
-          <Text style={styles.description}>
-            No te preocupes, te enviaremos un código de verificación a tu email para restablecer tu contraseña.
-          </Text>
+          {/* Título y descripción */}
+          <View style={styles.headerContainer}>
+            <Text style={styles.title}>¿Olvidaste tu contraseña?</Text>
+            <Text style={styles.subtitle}>
+              No te preocupes, te enviaremos un código de verificación a tu email para restablecer tu contraseña.
+            </Text>
+          </View>
 
-          <View style={styles.form}>
+          {/* Formulario */}
+          <View style={styles.formContainer}>
             <Input
               label="Correo electrónico"
               placeholder="tu@email.com"
@@ -144,143 +147,123 @@ export default function ForgotPasswordScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
-              autoFocus
             />
 
+            {/* Botón de enviar código */}
             <Button
               title="Enviar Código de Recuperación"
-              onPress={handleRequestCode}
+              onPress={handleSendCode}
               loading={isLoading}
               fullWidth
-              style={styles.submitButton}
+              style={styles.sendButton}
             />
 
-            <View style={styles.loginContainer}>
-              <Text style={styles.loginText}>¿Recordaste tu contraseña? </Text>
-              <TouchableOpacity onPress={() => router.back()}>
-                <Text style={styles.loginLink}>Iniciar Sesión</Text>
+            {/* Recordaste contraseña */}
+            <View style={styles.rememberContainer}>
+              <Text style={styles.rememberText}>¿Recordaste tu contraseña?</Text>
+              <TouchableOpacity 
+                onPress={() => router.push("/(auth)/login")}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={styles.rememberLink}>Iniciar Sesión</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </View>
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            © 2025 Event Connect - Sistema de Gestión Universitaria
-          </Text>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          {/* Espaciador inferior */}
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
-const createStyles = (isDark: boolean) =>
-  StyleSheet.create({
+const createStyles = (isDark: boolean) => {
+  const colors = isDark ? IOS_COLORS : IOS_COLORS;
+  
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: getIOSColor(colors.background.primary, isDark),
+    },
     container: {
       flex: 1,
-      backgroundColor: isDark ? "#000000" : "#ffffff",
     },
     scrollContent: {
       flexGrow: 1,
-      justifyContent: "center",
-      padding: 24,
-      paddingTop: 60,
+      paddingHorizontal: IOS_SPACING.lg,
+      paddingBottom: IOS_SPACING.xl,
     },
     backButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: isDark ? "#1f2937" : "#f3f4f6",
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 24,
-      alignSelf: "flex-start",
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: IOS_SPACING.sm,
+      marginTop: IOS_SPACING.sm,
+      marginLeft: -IOS_SPACING.sm,
     },
-    header: {
-      alignItems: "center",
-      marginBottom: 32,
+    backText: {
+      ...IOS_TYPOGRAPHY.body,
+      color: getIOSColor(colors.systemBlue, isDark),
+      marginLeft: 2,
+    },
+    spacer: {
+      height: IOS_SPACING.xxxl,
     },
     iconContainer: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
-      backgroundColor: isDark ? "#ffffff" : "#000000",
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 20,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 8,
+      alignItems: 'center',
+      marginBottom: IOS_SPACING.xl,
+    },
+    iconCircle: {
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      backgroundColor: isDark 
+        ? 'rgba(10, 132, 255, 0.15)' 
+        : 'rgba(0, 122, 255, 0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerContainer: {
+      alignItems: 'center',
+      marginBottom: IOS_SPACING.xxxl,
+      paddingHorizontal: IOS_SPACING.sm,
     },
     title: {
-      fontSize: 32,
-      fontWeight: "bold",
-      color: isDark ? "#ffffff" : "#000000",
-      marginBottom: 8,
-      textAlign: "center",
+      ...IOS_TYPOGRAPHY.largeTitle,
+      color: getIOSColor(colors.label.primary, isDark),
+      marginBottom: IOS_SPACING.md,
+      textAlign: 'center',
     },
     subtitle: {
-      fontSize: 16,
-      color: isDark ? "#9ca3af" : "#6b7280",
-      textAlign: "center",
+      ...IOS_TYPOGRAPHY.body,
+      color: getIOSColor(colors.label.secondary, isDark),
+      textAlign: 'center',
+      lineHeight: 24,
     },
-    card: {
-      backgroundColor: isDark ? "#000000" : "#ffffff",
-      borderRadius: 16,
-      borderWidth: 2,
-      borderColor: isDark ? "#ffffff" : "#e5e7eb",
-      padding: 24,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.2,
-      shadowRadius: 16,
-      elevation: 10,
+    formContainer: {
+      gap: IOS_SPACING.md,
     },
-    cardTitle: {
-      fontSize: 20,
-      fontWeight: "bold",
-      color: isDark ? "#ffffff" : "#000000",
-      marginBottom: 12,
-      textAlign: "center",
+    sendButton: {
+      marginTop: IOS_SPACING.md,
     },
-    description: {
-      fontSize: 14,
-      color: isDark ? "#9ca3af" : "#6b7280",
-      textAlign: "center",
-      marginBottom: 24,
-      lineHeight: 20,
+    rememberContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: IOS_SPACING.xl,
+      gap: IOS_SPACING.xs,
     },
-    form: {
-      gap: 16,
+    rememberText: {
+      ...IOS_TYPOGRAPHY.body,
+      color: getIOSColor(colors.label.secondary, isDark),
     },
-    submitButton: {
-      marginTop: 8,
+    rememberLink: {
+      ...IOS_TYPOGRAPHY.body,
+      color: getIOSColor(colors.systemBlue, isDark),
+      fontWeight: '600',
     },
-    loginContainer: {
-      flexDirection: "row",
-      justifyContent: "center",
-      alignItems: "center",
-      marginTop: 8,
-    },
-    loginText: {
-      fontSize: 14,
-      color: isDark ? "#9ca3af" : "#6b7280",
-    },
-    loginLink: {
-      fontSize: 14,
-      color: isDark ? "#ffffff" : "#000000",
-      fontWeight: "700",
-    },
-    footer: {
-      marginTop: 32,
-      alignItems: "center",
-    },
-    footerText: {
-      fontSize: 12,
-      color: isDark ? "#6b7280" : "#9ca3af",
-      textAlign: "center",
+    bottomSpacer: {
+      height: IOS_SPACING.xxxl,
     },
   });
+};

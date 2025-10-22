@@ -8,92 +8,94 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  useColorScheme,
+  SafeAreaView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Button, Input, PasswordStrength } from "@/src/components";
-import { useAuth } from "@/src/hooks";
-import {
-  validateEmail,
-  validatePassword,
-  validateName,
-  validatePasswordMatch,
-} from "@/src/utils";
+import { validateEmail, validatePassword, getPasswordStrength } from "@/src/utils";
+import { authService } from "@/src/services";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "@/src/hooks";
+import { IOS_TYPOGRAPHY, IOS_SPACING, IOS_RADIUS, IOS_COLORS, getIOSColor } from "@/src/constants/iosStyles";
 
 /**
- * Pantalla de Registro con diseño moderno y soporte para modo claro/oscuro
+ * Pantalla de Registro - Estilo iOS/Apple
  */
 export default function RegisterScreen() {
   const router = useRouter();
-  const { register } = useAuth();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const { isDark } = useTheme();
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
 
-  const [firstNameError, setFirstNameError] = useState("");
-  const [lastNameError, setLastNameError] = useState("");
-  const [emailError, setEmailError] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-  const [confirmPasswordError, setConfirmPasswordError] = useState("");
+  const [errors, setErrors] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
 
   const [isLoading, setIsLoading] = useState(false);
+
+  const styles = createStyles(isDark);
+  const passwordStrength = getPasswordStrength(formData.password);
+
+  /**
+   * Actualiza un campo del formulario
+   */
+  const updateField = (field: keyof typeof formData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => ({ ...prev, [field]: "" }));
+  };
 
   /**
    * Valida el formulario
    */
   const validateForm = (): boolean => {
+    const newErrors = {
+      firstName: "",
+      lastName: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    };
+
     let isValid = true;
 
-    // Validar nombres
-    const firstNameValidation = validateName(firstName, "nombre");
-    if (!firstNameValidation.isValid) {
-      setFirstNameError(firstNameValidation.error || "");
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = "El nombre es requerido";
       isValid = false;
-    } else {
-      setFirstNameError("");
     }
 
-    const lastNameValidation = validateName(lastName, "apellido");
-    if (!lastNameValidation.isValid) {
-      setLastNameError(lastNameValidation.error || "");
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = "El apellido es requerido";
       isValid = false;
-    } else {
-      setLastNameError("");
     }
 
-    // Validar email
-    const emailValidation = validateEmail(email);
+    const emailValidation = validateEmail(formData.email);
     if (!emailValidation.isValid) {
-      setEmailError(emailValidation.error || "");
+      newErrors.email = emailValidation.error || "";
       isValid = false;
-    } else {
-      setEmailError("");
     }
 
-    // Validar contraseña
-    const passwordValidation = validatePassword(password);
+    const passwordValidation = validatePassword(formData.password);
     if (!passwordValidation.isValid) {
-      setPasswordError(passwordValidation.error || "");
+      newErrors.password = passwordValidation.error || "";
       isValid = false;
-    } else {
-      setPasswordError("");
     }
 
-    // Validar confirmación
-    const matchValidation = validatePasswordMatch(password, confirmPassword);
-    if (!matchValidation.isValid) {
-      setConfirmPasswordError(matchValidation.error || "");
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = "Las contraseñas no coinciden";
       isValid = false;
-    } else {
-      setConfirmPasswordError("");
     }
 
+    setErrors(newErrors);
     return isValid;
   };
 
@@ -106,21 +108,21 @@ export default function RegisterScreen() {
     try {
       setIsLoading(true);
 
-      const result = await register({
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        email: email.trim().toLowerCase(),
-        password,
+      const result = await authService.register({
+        email: formData.email,
+        password: formData.password,
+        first_name: formData.firstName,
+        last_name: formData.lastName,
       });
 
       if (result.success) {
         Alert.alert(
-          "¡Bienvenido a EventConnect!",
-          "Tu cuenta ha sido creada exitosamente.",
+          "¡Registro Exitoso!",
+          "Tu cuenta ha sido creada. Ya puedes iniciar sesión.",
           [
             {
-              text: "Continuar",
-              onPress: () => router.replace("/(tabs)"),
+              text: "Iniciar Sesión",
+              onPress: () => router.replace("/(auth)/login"),
             },
           ]
         );
@@ -128,81 +130,82 @@ export default function RegisterScreen() {
         Alert.alert("Error", result.message);
       }
     } catch (error) {
-      Alert.alert("Error", "Ocurrió un error inesperado");
+      Alert.alert("Error", "Ocurrió un error durante el registro");
       console.error("Error en registro:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const styles = createStyles(isDark);
-
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        {/* Botón de volver */}
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons 
-            name="arrow-back" 
-            size={24} 
-            color={isDark ? "#ffffff" : "#000000"} 
-          />
-        </TouchableOpacity>
-
-        {/* Header con logo */}
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
+          {/* Botón de volver estilo iOS */}
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons 
-              name="person-add" 
-              size={40} 
-              color={isDark ? "#000000" : "#ffffff"} 
+              name="chevron-back" 
+              size={28} 
+              color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
             />
+            <Text style={styles.backText}>Volver</Text>
+          </TouchableOpacity>
+
+          {/* Espaciador */}
+          <View style={styles.spacer} />
+
+          {/* Logo */}
+          <View style={styles.logoContainer}>
+            <View style={styles.iconCircle}>
+              <Ionicons 
+                name="person-add" 
+                size={36} 
+                color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+              />
+            </View>
           </View>
-          <Text style={styles.title}>Event Connect</Text>
-          <Text style={styles.subtitle}>Registro de Organizador</Text>
-        </View>
 
-        {/* Card de registro */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Crear Cuenta</Text>
+          {/* Título */}
+          <View style={styles.headerContainer}>
+            <Text style={styles.title}>Crear Cuenta</Text>
+            <Text style={styles.subtitle}>
+              Completa tus datos para registrarte
+            </Text>
+          </View>
 
-          <View style={styles.form}>
-            <View style={styles.row}>
+          {/* Formulario */}
+          <View style={styles.formContainer}>
+            <View style={styles.rowContainer}>
               <View style={styles.halfWidth}>
                 <Input
                   label="Nombre"
                   placeholder="Tu nombre"
-                  value={firstName}
-                  onChangeText={(text) => {
-                    setFirstName(text);
-                    setFirstNameError("");
-                  }}
-                  error={firstNameError}
+                  value={formData.firstName}
+                  onChangeText={(text) => updateField("firstName", text)}
+                  error={errors.firstName}
                   icon="person-outline"
                   autoCapitalize="words"
                 />
               </View>
-
+              
               <View style={styles.halfWidth}>
                 <Input
                   label="Apellido"
                   placeholder="Tu apellido"
-                  value={lastName}
-                  onChangeText={(text) => {
-                    setLastName(text);
-                    setLastNameError("");
-                  }}
-                  error={lastNameError}
+                  value={formData.lastName}
+                  onChangeText={(text) => updateField("lastName", text)}
+                  error={errors.lastName}
                   icon="person-outline"
                   autoCapitalize="words"
                 />
@@ -212,12 +215,9 @@ export default function RegisterScreen() {
             <Input
               label="Correo electrónico"
               placeholder="tu@email.com"
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                setEmailError("");
-              }}
-              error={emailError}
+              value={formData.email}
+              onChangeText={(text) => updateField("email", text)}
+              error={errors.email}
               icon="mail-outline"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -226,32 +226,29 @@ export default function RegisterScreen() {
 
             <Input
               label="Contraseña"
-              placeholder="••••••••"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                setPasswordError("");
-              }}
-              error={passwordError}
+              placeholder="Mínimo 8 caracteres"
+              value={formData.password}
+              onChangeText={(text) => updateField("password", text)}
+              error={errors.password}
               icon="lock-closed-outline"
               isPassword
             />
 
-            <PasswordStrength password={password} />
+            {formData.password.length > 0 && (
+              <PasswordStrength strength={passwordStrength} />
+            )}
 
             <Input
-              label="Confirmar Contraseña"
-              placeholder="••••••••"
-              value={confirmPassword}
-              onChangeText={(text) => {
-                setConfirmPassword(text);
-                setConfirmPasswordError("");
-              }}
-              error={confirmPasswordError}
+              label="Confirmar contraseña"
+              placeholder="Confirma tu contraseña"
+              value={formData.confirmPassword}
+              onChangeText={(text) => updateField("confirmPassword", text)}
+              error={errors.confirmPassword}
               icon="lock-closed-outline"
               isPassword
             />
 
+            {/* Botón de registro */}
             <Button
               title="Crear Cuenta"
               onPress={handleRegister}
@@ -260,130 +257,117 @@ export default function RegisterScreen() {
               style={styles.registerButton}
             />
 
+            {/* Login link */}
             <View style={styles.loginContainer}>
-              <Text style={styles.loginText}>¿Ya tienes una cuenta? </Text>
-              <TouchableOpacity onPress={() => router.back()}>
+              <Text style={styles.loginText}>¿Ya tienes cuenta?</Text>
+              <TouchableOpacity 
+                onPress={() => router.push("/(auth)/login")}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
                 <Text style={styles.loginLink}>Inicia Sesión</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </View>
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            © 2025 Event Connect - Sistema de Gestión Universitaria
-          </Text>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          {/* Espaciador inferior */}
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
-const createStyles = (isDark: boolean) =>
-  StyleSheet.create({
+const createStyles = (isDark: boolean) => {
+  const colors = isDark ? IOS_COLORS : IOS_COLORS;
+  
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: getIOSColor(colors.background.primary, isDark),
+    },
     container: {
       flex: 1,
-      backgroundColor: isDark ? "#000000" : "#ffffff",
     },
     scrollContent: {
       flexGrow: 1,
-      padding: 24,
-      paddingTop: 60,
+      paddingHorizontal: IOS_SPACING.lg,
+      paddingBottom: IOS_SPACING.xl,
     },
     backButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: isDark ? "#1f2937" : "#f3f4f6",
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 24,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: IOS_SPACING.sm,
+      marginTop: IOS_SPACING.sm,
+      marginLeft: -IOS_SPACING.sm,
     },
-    header: {
-      alignItems: "center",
-      marginBottom: 32,
+    backText: {
+      ...IOS_TYPOGRAPHY.body,
+      color: getIOSColor(colors.systemBlue, isDark),
+      marginLeft: 2,
+    },
+    spacer: {
+      height: IOS_SPACING.lg,
     },
     logoContainer: {
-      width: 80,
-      height: 80,
-      borderRadius: 16,
-      backgroundColor: isDark ? "#ffffff" : "#000000",
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 20,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 8,
+      alignItems: 'center',
+      marginBottom: IOS_SPACING.lg,
+    },
+    iconCircle: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: isDark 
+        ? 'rgba(10, 132, 255, 0.15)' 
+        : 'rgba(0, 122, 255, 0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerContainer: {
+      alignItems: 'center',
+      marginBottom: IOS_SPACING.xl,
     },
     title: {
-      fontSize: 36,
-      fontWeight: "bold",
-      color: isDark ? "#ffffff" : "#000000",
-      marginBottom: 8,
-      textAlign: "center",
+      ...IOS_TYPOGRAPHY.largeTitle,
+      color: getIOSColor(colors.label.primary, isDark),
+      marginBottom: IOS_SPACING.sm,
+      textAlign: 'center',
     },
     subtitle: {
-      fontSize: 16,
-      color: isDark ? "#9ca3af" : "#6b7280",
-      textAlign: "center",
+      ...IOS_TYPOGRAPHY.body,
+      color: getIOSColor(colors.label.secondary, isDark),
+      textAlign: 'center',
     },
-    card: {
-      backgroundColor: isDark ? "#000000" : "#ffffff",
-      borderRadius: 16,
-      borderWidth: 2,
-      borderColor: isDark ? "#ffffff" : "#e5e7eb",
-      padding: 24,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.2,
-      shadowRadius: 16,
-      elevation: 10,
+    formContainer: {
+      gap: IOS_SPACING.md,
     },
-    cardTitle: {
-      fontSize: 24,
-      fontWeight: "bold",
-      color: isDark ? "#ffffff" : "#000000",
-      marginBottom: 24,
-      textAlign: "center",
-    },
-    form: {
-      gap: 16,
-    },
-    row: {
-      flexDirection: "row",
-      gap: 12,
+    rowContainer: {
+      flexDirection: 'row',
+      gap: IOS_SPACING.sm,
     },
     halfWidth: {
       flex: 1,
     },
     registerButton: {
-      marginTop: 8,
+      marginTop: IOS_SPACING.md,
     },
     loginContainer: {
-      flexDirection: "row",
-      justifyContent: "center",
-      alignItems: "center",
-      marginTop: 8,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: IOS_SPACING.lg,
+      gap: IOS_SPACING.xs,
     },
     loginText: {
-      fontSize: 14,
-      color: isDark ? "#9ca3af" : "#6b7280",
+      ...IOS_TYPOGRAPHY.body,
+      color: getIOSColor(colors.label.secondary, isDark),
     },
     loginLink: {
-      fontSize: 14,
-      color: isDark ? "#ffffff" : "#000000",
-      fontWeight: "700",
+      ...IOS_TYPOGRAPHY.body,
+      color: getIOSColor(colors.systemBlue, isDark),
+      fontWeight: '600',
     },
-    footer: {
-      marginTop: 32,
-      alignItems: "center",
-    },
-    footerText: {
-      fontSize: 12,
-      color: isDark ? "#6b7280" : "#9ca3af",
-      textAlign: "center",
+    bottomSpacer: {
+      height: IOS_SPACING.xl,
     },
   });
+};
