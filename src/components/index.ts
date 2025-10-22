@@ -7,4 +7,5 @@ export { ErrorMessage } from './ErrorMessage';
 export { PasswordStrength } from './PasswordStrength';
 export { CodeInput } from './CodeInput';
 export { IOSAlert, type AlertButton } from './IOSAlert';
+export { NavigationBarController } from './NavigationBarController';
 
