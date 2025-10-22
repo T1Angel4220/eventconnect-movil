@@ -295,7 +295,7 @@ export default function EventDetailsScreen() {
                 </View>
                 <View>
                   <Text style={styles.organizerName}>
-                    {event.organizer_first_name} {event.organizer_last_name}
+                    {event.organizer_name}
                   </Text>
                   <Text style={styles.organizerEmail}>{event.organizer_email}</Text>
                 </View>

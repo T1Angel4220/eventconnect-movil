@@ -36,10 +36,26 @@ class EventService {
   }
 
   /**
-   * Obtiene un evento por su ID
+   * Obtiene un evento por su ID (con información del organizador)
    */
   async getEventById(eventId: number): Promise<EventResponse> {
     try {
+      // Primero intentamos obtener todos los eventos con organizador
+      const allEventsResponse = await api.get<EventsResponse>('/events/with-organizer');
+      
+      if (allEventsResponse.data.success && allEventsResponse.data.data) {
+        // Buscar el evento específico en la lista
+        const event = allEventsResponse.data.data.find(e => e.event_id === eventId);
+        
+        if (event) {
+          return {
+            success: true,
+            data: event,
+          };
+        }
+      }
+      
+      // Si no lo encontramos, fallback al endpoint original
       const response = await api.get<EventResponse>(`/events/${eventId}`);
       return response.data;
     } catch (error) {
