@@ -7,30 +7,27 @@ import {
   TouchableOpacity,
   TextInput,
   RefreshControl,
-  Alert,
   Image,
-  ScrollView,
+  SafeAreaView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth, useTheme } from "@/src/hooks";
-import { eventService, registrationService } from "@/src/services";
+import { eventService } from "@/src/services";
 import { EventWithOrganizer } from "@/src/types";
 import { Loading, ErrorMessage } from "@/src/components";
 import {
   formatDate,
   formatTime,
-  formatDuration,
-  getTimeUntilEvent,
   getEventTypeName,
-  truncateText,
   formatCapacity,
   getOccupancyPercentage,
   getImageUrl,
 } from "@/src/utils";
+import { IOS_TYPOGRAPHY, IOS_SPACING, IOS_RADIUS, IOS_COLORS, IOS_SHADOWS, getIOSColor } from "@/src/constants/iosStyles";
 
 /**
- * Dashboard Principal - Lista de Eventos Disponibles
+ * Dashboard Principal - Lista de Eventos Disponibles (Estilo iOS)
  * Para usuarios participantes
  */
 export default function EventsScreen() {
@@ -45,6 +42,8 @@ export default function EventsScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<"all" | "academic" | "cultural" | "sports">("all");
   const [error, setError] = useState("");
+
+  const styles = createStyles(isDark);
 
   // Categorías para filtrar
   const categories = [
@@ -63,13 +62,12 @@ export default function EventsScreen() {
       const result = await eventService.getAllEvents();
 
       if (result.success && result.data) {
-        // Ordenar por fecha (más próximos primero)
         const sortedEvents = result.data.sort((a, b) => {
           return new Date(a.event_date).getTime() - new Date(b.event_date).getTime();
         });
         
         setEvents(sortedEvents);
-        setFilteredEvents(sortedEvents);
+        filterEvents(sortedEvents, searchQuery, selectedCategory);
       } else {
         setError(result.message || "Error al cargar eventos");
       }
@@ -82,170 +80,139 @@ export default function EventsScreen() {
     }
   };
 
-  /**
-   * Efecto inicial
-   */
   useEffect(() => {
     loadEvents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
-   * Filtra los eventos según búsqueda y categoría
+   * Filtra eventos por búsqueda y categoría
    */
-  useEffect(() => {
-    let filtered = [...events];
+  const filterEvents = (
+    eventsList: EventWithOrganizer[],
+    query: string,
+    category: typeof selectedCategory
+  ) => {
+    let filtered = eventsList;
 
-    // Filtrar por categoría
-    if (selectedCategory !== "all") {
-      filtered = filtered.filter((event) => event.event_type === selectedCategory);
+    if (category !== "all") {
+      filtered = filtered.filter((event) => event.event_type === category);
     }
 
-    // Filtrar por búsqueda
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (query.trim()) {
       filtered = filtered.filter(
         (event) =>
-          event.title.toLowerCase().includes(query) ||
-          event.description?.toLowerCase().includes(query) ||
-          event.location?.toLowerCase().includes(query) ||
-          event.organizer_name.toLowerCase().includes(query)
+          event.title.toLowerCase().includes(query.toLowerCase()) ||
+          event.description?.toLowerCase().includes(query.toLowerCase())
       );
     }
 
     setFilteredEvents(filtered);
-  }, [searchQuery, selectedCategory, events]);
-
-  /**
-   * Maneja el refresh
-   */
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadEvents();
   };
 
   /**
-   * Navega a detalles del evento
+   * Maneja el cambio de búsqueda
    */
-  const handleEventPress = (eventId: number) => {
-    router.push({
-      pathname: `/event/[id]`,
-      params: { id: eventId },
-    });
+  const handleSearch = (text: string) => {
+    setSearchQuery(text);
+    filterEvents(events, text, selectedCategory);
   };
 
   /**
-   * Inscripción rápida
+   * Maneja el cambio de categoría
    */
-  const handleQuickRegister = async (eventId: number, eventTitle: string) => {
-    Alert.alert(
-      "Confirmar Inscripción",
-      `¿Deseas inscribirte a "${eventTitle}"?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Inscribirme",
-          onPress: async () => {
-            try {
-              const result = await registrationService.createRegistration({ event_id: eventId });
-              
-              if (result.success) {
-                Alert.alert("¡Inscripción Exitosa!", "Te has inscrito correctamente al evento");
-                loadEvents(); // Recargar eventos
-              } else {
-                Alert.alert("Error", result.message);
-              }
-            } catch (error) {
-              Alert.alert("Error", "No se pudo completar la inscripción");
-            }
-          },
-        },
-      ]
-    );
+  const handleCategoryChange = (category: typeof selectedCategory) => {
+    setSelectedCategory(category);
+    filterEvents(events, searchQuery, category);
   };
 
+
   /**
-   * Renderiza un evento
+   * Render de cada evento
    */
   const renderEvent = ({ item }: { item: EventWithOrganizer }) => {
     const occupancy = getOccupancyPercentage(item.registered_count || 0, item.capacity);
     const isFull = occupancy >= 100;
     const isAlmostFull = occupancy >= 80 && occupancy < 100;
 
+    // Colores según categoría
+    const categoryColors = {
+      academic: getIOSColor(IOS_COLORS.systemBlue, isDark),
+      cultural: getIOSColor(IOS_COLORS.purple, isDark),
+      sports: getIOSColor(IOS_COLORS.green, isDark),
+    };
+
     return (
       <TouchableOpacity
         style={styles.eventCard}
-        onPress={() => handleEventPress(item.event_id)}
+        onPress={() => router.push(`/event/${item.event_id}`)}
         activeOpacity={0.7}
       >
         {/* Imagen del evento */}
-        <View style={styles.eventImageContainer}>
-          {item.event_image ? (
-            <Image
-              source={{ uri: getImageUrl(item.event_image) }}
-              style={styles.eventImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={[styles.eventImage, styles.eventImagePlaceholder]}>
-              <Ionicons name="calendar" size={40} color="#9ca3af" />
-            </View>
-          )}
+        <View style={styles.imageContainer}>
+          <Image
+            source={{ uri: getImageUrl(item.event_image) }}
+            style={styles.eventImage}
+            resizeMode="cover"
+          />
           
           {/* Badge de categoría */}
-          <View style={[styles.categoryBadge, styles[`${item.event_type}Badge`]]}>
+          <View
+            style={[
+              styles.categoryBadge,
+              { backgroundColor: categoryColors[item.event_type] },
+            ]}
+          >
             <Ionicons
-              name={item.event_type === "academic" ? "school" : item.event_type === "cultural" ? "color-palette" : "football"}
+              name={
+                item.event_type === "academic"
+                  ? "school"
+                  : item.event_type === "cultural"
+                  ? "color-palette"
+                  : "football"
+              }
               size={12}
-              color="#ffffff"
+              color="#FFFFFF"
             />
-            <Text style={styles.categoryBadgeText}>{getEventTypeName(item.event_type)}</Text>
+            <Text style={styles.categoryText}>{getEventTypeName(item.event_type)}</Text>
           </View>
+
+          {/* Badge de lleno/casi lleno */}
+          {(isFull || isAlmostFull) && (
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: isFull ? getIOSColor(IOS_COLORS.red, isDark) : getIOSColor(IOS_COLORS.orange, isDark) },
+              ]}
+            >
+              <Text style={styles.statusText}>{isFull ? "Lleno" : "Casi lleno"}</Text>
+            </View>
+          )}
         </View>
 
-        {/* Contenido del evento */}
+        {/* Contenido */}
         <View style={styles.eventContent}>
           <Text style={styles.eventTitle} numberOfLines={2}>
             {item.title}
           </Text>
 
-          {item.description && (
-            <Text style={styles.eventDescription} numberOfLines={2}>
-              {item.description}
+          {/* Fecha y hora */}
+          <View style={styles.infoRow}>
+            <Ionicons name="calendar-outline" size={14} color={getIOSColor(IOS_COLORS.label.secondary, isDark)} />
+            <Text style={styles.infoText}>
+              {formatDate(item.event_date)} • {formatTime(item.event_date)}
             </Text>
+          </View>
+
+          {/* Ubicación */}
+          {item.location && (
+            <View style={styles.infoRow}>
+              <Ionicons name="location-outline" size={14} color={getIOSColor(IOS_COLORS.label.secondary, isDark)} />
+              <Text style={styles.infoText} numberOfLines={1}>
+                {item.location}
+              </Text>
+            </View>
           )}
-
-          {/* Información del evento */}
-          <View style={styles.eventInfo}>
-            <View style={styles.infoRow}>
-              <Ionicons name="calendar-outline" size={16} color="#6b7280" />
-              <Text style={styles.infoText}>{formatDate(item.event_date)}</Text>
-            </View>
-
-            <View style={styles.infoRow}>
-              <Ionicons name="time-outline" size={16} color="#6b7280" />
-              <Text style={styles.infoText}>{formatTime(item.event_date)}</Text>
-            </View>
-
-            <View style={styles.infoRow}>
-              <Ionicons name="hourglass-outline" size={16} color="#6b7280" />
-              <Text style={styles.infoText}>{formatDuration(item.duration)}</Text>
-            </View>
-
-            {item.location && (
-              <View style={styles.infoRow}>
-                <Ionicons name="location-outline" size={16} color="#6b7280" />
-                <Text style={styles.infoText} numberOfLines={1}>
-                  {truncateText(item.location, 20)}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Organizador */}
-          <View style={styles.organizerContainer}>
-            <Ionicons name="person-outline" size={14} color="#9ca3af" />
-            <Text style={styles.organizerText}>{item.organizer_name}</Text>
-          </View>
 
           {/* Capacidad */}
           <View style={styles.capacityContainer}>
@@ -255,7 +222,11 @@ export default function EventsScreen() {
                   styles.capacityFill,
                   {
                     width: `${Math.min(occupancy, 100)}%`,
-                    backgroundColor: isFull ? "#ef4444" : isAlmostFull ? "#f59e0b" : "#3b82f6",
+                    backgroundColor: isFull
+                      ? getIOSColor(IOS_COLORS.red, isDark)
+                      : isAlmostFull
+                      ? getIOSColor(IOS_COLORS.orange, isDark)
+                      : getIOSColor(IOS_COLORS.systemBlue, isDark),
                   },
                 ]}
               />
@@ -264,83 +235,54 @@ export default function EventsScreen() {
               {formatCapacity(item.registered_count || 0, item.capacity)}
             </Text>
           </View>
-
-          {/* Tiempo hasta el evento */}
-          <Text style={styles.timeUntil}>{getTimeUntilEvent(item.event_date)}</Text>
-
-          {/* Botón de inscripción rápida */}
-          {!isFull && (
-            <TouchableOpacity
-              style={styles.quickRegisterButton}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleQuickRegister(item.event_id, item.title);
-              }}
-            >
-              <Ionicons name="checkmark-circle" size={18} color="#ffffff" />
-              <Text style={styles.quickRegisterText}>Inscribirme</Text>
-            </TouchableOpacity>
-          )}
-
-          {isFull && (
-            <View style={styles.fullBadge}>
-              <Ionicons name="close-circle" size={18} color="#ef4444" />
-              <Text style={styles.fullText}>Cupo Completo</Text>
-            </View>
-          )}
         </View>
       </TouchableOpacity>
     );
   };
 
   /**
-   * Header del listado
+   * Header de la lista
    */
   const ListHeader = () => (
-    <View>
-      {/* Header con toggle */}
-      <View style={styles.topHeader}>
-        <View style={styles.welcomeContainer}>
-          <Text style={styles.welcomeText}>¡Hola, {user?.first_name}! 👋</Text>
-          <Text style={styles.subtitleText}>Descubre eventos increíbles</Text>
+    <View style={styles.headerContainer}>
+      {/* Saludo */}
+      <View style={styles.greetingContainer}>
+        <View>
+          <Text style={styles.greetingText}>Hola,</Text>
+          <Text style={styles.userName}>{user?.first_name || "Usuario"} 👋</Text>
         </View>
         <TouchableOpacity
           onPress={toggleTheme}
           style={styles.themeToggle}
-          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons 
-            name={theme === 'system' ? 'phone-portrait-outline' : isDark ? "sunny" : "moon"} 
-            size={24} 
-            color={isDark ? "#fbbf24" : "#000000"} 
+          <Ionicons
+            name={theme === 'system' ? 'phone-portrait-outline' : isDark ? "sunny" : "moon"}
+            size={24}
+            color={getIOSColor(IOS_COLORS.label.primary, isDark)}
           />
         </TouchableOpacity>
       </View>
 
-      {/* Búsqueda */}
+      {/* Barra de búsqueda estilo iOS */}
       <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
+        <Ionicons name="search" size={18} color={getIOSColor(IOS_COLORS.label.tertiary, isDark)} />
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar eventos..."
-          placeholderTextColor="#9ca3af"
           value={searchQuery}
-          onChangeText={setSearchQuery}
+          onChangeText={handleSearch}
+          placeholderTextColor={getIOSColor(IOS_COLORS.label.tertiary, isDark)}
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery("")}>
-            <Ionicons name="close-circle" size={20} color="#9ca3af" />
+          <TouchableOpacity onPress={() => handleSearch("")} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="close-circle" size={18} color={getIOSColor(IOS_COLORS.label.tertiary, isDark)} />
           </TouchableOpacity>
         )}
       </View>
 
       {/* Filtros de categoría */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoriesContainer}
-        contentContainerStyle={styles.categoriesContent}
-      >
+      <View style={styles.categoriesContainer}>
         {categories.map((category) => (
           <TouchableOpacity
             key={category.key}
@@ -348,12 +290,17 @@ export default function EventsScreen() {
               styles.categoryChip,
               selectedCategory === category.key && styles.categoryChipActive,
             ]}
-            onPress={() => setSelectedCategory(category.key)}
+            onPress={() => handleCategoryChange(category.key as typeof selectedCategory)}
+            activeOpacity={0.7}
           >
             <Ionicons
               name={category.icon as any}
-              size={18}
-              color={selectedCategory === category.key ? "#ffffff" : "#6b7280"}
+              size={16}
+              color={
+                selectedCategory === category.key
+                  ? "#FFFFFF"
+                  : getIOSColor(IOS_COLORS.label.primary, isDark)
+              }
             />
             <Text
               style={[
@@ -365,342 +312,246 @@ export default function EventsScreen() {
             </Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
-
-      {/* Contador de eventos */}
-      <View style={styles.counterContainer}>
-        <Text style={styles.counterText}>
-          {filteredEvents.length} evento{filteredEvents.length !== 1 ? "s" : ""} disponible{filteredEvents.length !== 1 ? "s" : ""}
-        </Text>
       </View>
+
+      {/* Título de sección */}
+      <Text style={styles.sectionTitle}>Próximos Eventos</Text>
     </View>
   );
 
   /**
-   * Contenido vacío
+   * Empty state
    */
-  const EmptyComponent = () => (
+  const ListEmpty = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="calendar-outline" size={64} color="#d1d5db" />
-      <Text style={styles.emptyTitle}>No hay eventos</Text>
-      <Text style={styles.emptyText}>
+      <Ionicons name="calendar-outline" size={80} color={getIOSColor(IOS_COLORS.label.quaternary, isDark)} />
+      <Text style={styles.emptyTitle}>No hay eventos disponibles</Text>
+      <Text style={styles.emptySubtitle}>
         {searchQuery || selectedCategory !== "all"
-          ? "No se encontraron eventos con estos filtros"
-          : "Aún no hay eventos disponibles"}
+          ? "Intenta cambiar los filtros"
+          : "Vuelve más tarde para ver nuevos eventos"}
       </Text>
     </View>
   );
 
-  // Estados de carga y error
   if (loading) {
     return <Loading message="Cargando eventos..." />;
   }
 
-  if (error && events.length === 0) {
-    return (
-      <View style={styles.container}>
-        <ErrorMessage message={error} />
-        <TouchableOpacity style={styles.retryButton} onPress={loadEvents}>
-          <Ionicons name="refresh" size={20} color="#ffffff" />
-          <Text style={styles.retryText}>Reintentar</Text>
-        </TouchableOpacity>
-      </View>
-    );
+  if (error && !refreshing) {
+    return <ErrorMessage message={error} onRetry={loadEvents} />;
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
       <FlatList
         data={filteredEvents}
         renderItem={renderEvent}
         keyExtractor={(item) => item.event_id.toString()}
         ListHeaderComponent={ListHeader}
-        ListEmptyComponent={EmptyComponent}
+        ListEmptyComponent={ListEmpty}
         contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={["#3b82f6"]}
-            tintColor="#3b82f6"
+            onRefresh={() => {
+              setRefreshing(true);
+              loadEvents();
+            }}
+            tintColor={getIOSColor(IOS_COLORS.systemBlue, isDark)}
           />
         }
-        showsVerticalScrollIndicator={false}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f9fafb",
-  },
-  listContent: {
-    padding: 16,
-  },
-  topHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  welcomeContainer: {
-    flex: 1,
-  },
-  themeToggle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#ffffff",
-    borderWidth: 2,
-    borderColor: "#e5e7eb",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    marginLeft: 12,
-  },
-  welcomeText: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#1f2937",
-    marginBottom: 4,
-  },
-  subtitleText: {
-    fontSize: 16,
-    color: "#6b7280",
-  },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: "#1f2937",
-  },
-  categoriesContainer: {
-    marginBottom: 16,
-  },
-  categoriesContent: {
-    paddingRight: 16,
-  },
-  categoryChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    gap: 6,
-  },
-  categoryChipActive: {
-    backgroundColor: "#3b82f6",
-    borderColor: "#3b82f6",
-  },
-  categoryChipText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#6b7280",
-  },
-  categoryChipTextActive: {
-    color: "#ffffff",
-  },
-  counterContainer: {
-    marginBottom: 16,
-  },
-  counterText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#6b7280",
-  },
-  eventCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
-    marginBottom: 16,
-    overflow: "hidden",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  eventImageContainer: {
-    position: "relative",
-  },
-  eventImage: {
-    width: "100%",
-    height: 200,
-    backgroundColor: "#f3f4f6",
-  },
-  eventImagePlaceholder: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  categoryBadge: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 4,
-  },
-  academicBadge: {
-    backgroundColor: "#3b82f6",
-  },
-  culturalBadge: {
-    backgroundColor: "#8b5cf6",
-  },
-  sportsBadge: {
-    backgroundColor: "#10b981",
-  },
-  categoryBadgeText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#ffffff",
-  },
-  eventContent: {
-    padding: 16,
-  },
-  eventTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#1f2937",
-    marginBottom: 8,
-  },
-  eventDescription: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  eventInfo: {
-    marginBottom: 12,
-  },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 6,
-    gap: 8,
-  },
-  infoText: {
-    fontSize: 14,
-    color: "#6b7280",
-  },
-  organizerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-    gap: 6,
-  },
-  organizerText: {
-    fontSize: 13,
-    color: "#9ca3af",
-  },
-  capacityContainer: {
-    marginBottom: 12,
-  },
-  capacityBar: {
-    height: 6,
-    backgroundColor: "#e5e7eb",
-    borderRadius: 3,
-    overflow: "hidden",
-    marginBottom: 6,
-  },
-  capacityFill: {
-    height: "100%",
-    borderRadius: 3,
-  },
-  capacityText: {
-    fontSize: 12,
-    color: "#6b7280",
-    fontWeight: "600",
-  },
-  timeUntil: {
-    fontSize: 13,
-    color: "#3b82f6",
-    fontWeight: "600",
-    marginBottom: 12,
-  },
-  quickRegisterButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#3b82f6",
-    borderRadius: 10,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  quickRegisterText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#ffffff",
-  },
-  fullBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#fef2f2",
-    borderRadius: 10,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  fullText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#ef4444",
-  },
-  emptyContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#1f2937",
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: "#6b7280",
-    textAlign: "center",
-  },
-  retryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#3b82f6",
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    marginHorizontal: 16,
-    gap: 8,
-  },
-  retryText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#ffffff",
-  },
-});
+const createStyles = (isDark: boolean) => {
+  const colors = isDark ? IOS_COLORS : IOS_COLORS;
+
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: getIOSColor(colors.background.primary, isDark),
+    },
+    listContent: {
+      paddingBottom: IOS_SPACING.xl,
+    },
+    headerContainer: {
+      paddingHorizontal: IOS_SPACING.lg,
+      paddingTop: IOS_SPACING.md,
+      paddingBottom: IOS_SPACING.lg,
+    },
+    greetingContainer: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: IOS_SPACING.lg,
+    },
+    greetingText: {
+      ...IOS_TYPOGRAPHY.body,
+      color: getIOSColor(colors.label.secondary, isDark),
+    },
+    userName: {
+      ...IOS_TYPOGRAPHY.largeTitle,
+      color: getIOSColor(colors.label.primary, isDark),
+      marginTop: IOS_SPACING.xs,
+    },
+    themeToggle: {
+      padding: IOS_SPACING.sm,
+    },
+    searchContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: isDark
+        ? getIOSColor(colors.fill.tertiary, isDark)
+        : getIOSColor(colors.background.secondary, isDark),
+      borderRadius: IOS_RADIUS.medium,
+      paddingHorizontal: IOS_SPACING.md,
+      paddingVertical: IOS_SPACING.sm,
+      marginBottom: IOS_SPACING.lg,
+    },
+    searchInput: {
+      flex: 1,
+      ...IOS_TYPOGRAPHY.body,
+      color: getIOSColor(colors.label.primary, isDark),
+      marginLeft: IOS_SPACING.sm,
+      marginRight: IOS_SPACING.sm,
+    },
+    categoriesContainer: {
+      flexDirection: "row",
+      gap: IOS_SPACING.sm,
+      marginBottom: IOS_SPACING.xl,
+    },
+    categoryChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: IOS_SPACING.md,
+      paddingVertical: IOS_SPACING.sm,
+      borderRadius: IOS_RADIUS.large,
+      backgroundColor: isDark
+        ? getIOSColor(colors.fill.tertiary, isDark)
+        : getIOSColor(colors.background.secondary, isDark),
+      gap: IOS_SPACING.xs,
+    },
+    categoryChipActive: {
+      backgroundColor: getIOSColor(colors.systemBlue, isDark),
+    },
+    categoryChipText: {
+      ...IOS_TYPOGRAPHY.subheadline,
+      color: getIOSColor(colors.label.primary, isDark),
+      fontWeight: "600",
+    },
+    categoryChipTextActive: {
+      color: "#FFFFFF",
+    },
+    sectionTitle: {
+      ...IOS_TYPOGRAPHY.title2,
+      color: getIOSColor(colors.label.primary, isDark),
+      marginBottom: IOS_SPACING.md,
+    },
+    eventCard: {
+      marginHorizontal: IOS_SPACING.lg,
+      marginBottom: IOS_SPACING.lg,
+      borderRadius: IOS_RADIUS.card,
+      backgroundColor: isDark
+        ? getIOSColor(colors.background.secondary, isDark)
+        : getIOSColor(colors.background.tertiary, isDark),
+      overflow: "hidden",
+      ...IOS_SHADOWS.medium,
+    },
+    imageContainer: {
+      position: "relative",
+      width: "100%",
+      height: 180,
+    },
+    eventImage: {
+      width: "100%",
+      height: "100%",
+    },
+    categoryBadge: {
+      position: "absolute",
+      top: IOS_SPACING.sm,
+      left: IOS_SPACING.sm,
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: IOS_SPACING.sm,
+      paddingVertical: IOS_SPACING.xs,
+      borderRadius: IOS_RADIUS.small,
+      gap: 4,
+    },
+    categoryText: {
+      ...IOS_TYPOGRAPHY.caption1,
+      color: "#FFFFFF",
+      fontWeight: "600",
+    },
+    statusBadge: {
+      position: "absolute",
+      top: IOS_SPACING.sm,
+      right: IOS_SPACING.sm,
+      paddingHorizontal: IOS_SPACING.sm,
+      paddingVertical: IOS_SPACING.xs,
+      borderRadius: IOS_RADIUS.small,
+    },
+    statusText: {
+      ...IOS_TYPOGRAPHY.caption1,
+      color: "#FFFFFF",
+      fontWeight: "600",
+    },
+    eventContent: {
+      padding: IOS_SPACING.md,
+    },
+    eventTitle: {
+      ...IOS_TYPOGRAPHY.headline,
+      color: getIOSColor(colors.label.primary, isDark),
+      marginBottom: IOS_SPACING.sm,
+    },
+    infoRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: IOS_SPACING.xs,
+      marginBottom: IOS_SPACING.xs,
+    },
+    infoText: {
+      ...IOS_TYPOGRAPHY.subheadline,
+      color: getIOSColor(colors.label.secondary, isDark),
+    },
+    capacityContainer: {
+      marginTop: IOS_SPACING.sm,
+    },
+    capacityBar: {
+      height: 4,
+      backgroundColor: getIOSColor(colors.fill.tertiary, isDark),
+      borderRadius: 2,
+      overflow: "hidden",
+      marginBottom: IOS_SPACING.xs,
+    },
+    capacityFill: {
+      height: "100%",
+      borderRadius: 2,
+    },
+    capacityText: {
+      ...IOS_TYPOGRAPHY.caption1,
+      color: getIOSColor(colors.label.tertiary, isDark),
+    },
+    emptyContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: IOS_SPACING.xxxl * 2,
+      paddingHorizontal: IOS_SPACING.xl,
+    },
+    emptyTitle: {
+      ...IOS_TYPOGRAPHY.title2,
+      color: getIOSColor(colors.label.primary, isDark),
+      marginTop: IOS_SPACING.lg,
+      marginBottom: IOS_SPACING.sm,
+      textAlign: "center",
+    },
+    emptySubtitle: {
+      ...IOS_TYPOGRAPHY.body,
+      color: getIOSColor(colors.label.secondary, isDark),
+      textAlign: "center",
+    },
+  });
+};

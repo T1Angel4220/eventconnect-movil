@@ -1,4 +1,4 @@
-// Componente de botón personalizado con soporte para modo oscuro
+// Componente de botón estilo iOS/Apple
 
 import React from "react";
 import {
@@ -10,11 +10,12 @@ import {
   TextStyle,
 } from "react-native";
 import { useTheme } from "@/src/hooks";
+import { IOS_COLORS, IOS_SPACING, IOS_RADIUS, IOS_SHADOWS, getIOSColor } from "@/src/constants/iosStyles";
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: "primary" | "secondary" | "outline" | "danger";
+  variant?: "primary" | "secondary" | "outline" | "danger" | "text";
   size?: "small" | "medium" | "large";
   disabled?: boolean;
   loading?: boolean;
@@ -37,132 +38,133 @@ export const Button: React.FC<ButtonProps> = ({
   const isDisabled = disabled || loading;
   const { isDark } = useTheme();
 
-  // Colores dinámicos según el tema
-  const getButtonStyle = () => {
-    if (variant === "primary") {
-      return {
-        backgroundColor: isDark ? "#ffffff" : "#000000",
-        borderWidth: 2,
-        borderColor: isDark ? "#ffffff" : "#000000",
-      };
-    }
-    if (variant === "outline") {
-      return {
-        backgroundColor: "transparent",
-        borderWidth: 2,
-        borderColor: isDark ? "#ffffff" : "#000000",
-      };
-    }
-    if (variant === "danger") {
-      return {
-        backgroundColor: "#ef4444",
-        borderWidth: 2,
-        borderColor: "#ef4444",
-      };
-    }
-    return {
-      backgroundColor: "#6b7280",
-      borderWidth: 2,
-      borderColor: "#6b7280",
-    };
-  };
-
-  const getTextColor = () => {
-    if (variant === "primary") {
-      return isDark ? "#000000" : "#ffffff";
-    }
-    if (variant === "outline") {
-      return isDark ? "#ffffff" : "#000000";
-    }
-    return "#ffffff";
-  };
-
-  const getLoaderColor = () => {
-    if (variant === "primary") {
-      return isDark ? "#000000" : "#ffffff";
-    }
-    if (variant === "outline") {
-      return isDark ? "#ffffff" : "#000000";
-    }
-    return "#ffffff";
-  };
+  const styles = createStyles(isDark, variant, size, isDisabled, fullWidth);
 
   return (
     <TouchableOpacity
-      style={[
-        styles.button,
-        getButtonStyle(),
-        styles[size],
-        fullWidth && styles.fullWidth,
-        isDisabled && styles.disabled,
-        style,
-      ]}
+      style={[styles.button, style]}
       onPress={onPress}
       disabled={isDisabled}
-      activeOpacity={0.7}
+      activeOpacity={0.6}
     >
       {loading ? (
-        <ActivityIndicator color={getLoaderColor()} size="small" />
+        <ActivityIndicator 
+          color={variant === "primary" ? "#FFFFFF" : getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+          size="small" 
+        />
       ) : (
-        <Text
-          style={[
-            styles.text,
-            styles[`${size}Text`],
-            { color: getTextColor() },
-            textStyle,
-          ]}
-        >
-          {title}
-        </Text>
+        <Text style={[styles.text, textStyle]}>{title}</Text>
       )}
     </TouchableOpacity>
   );
 };
 
-const styles = StyleSheet.create({
-  button: {
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  fullWidth: {
-    width: "100%",
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  // Sizes
-  small: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  medium: {
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-  },
-  large: {
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-  },
-  // Text styles
-  text: {
-    fontWeight: "700",
-  },
-  smallText: {
-    fontSize: 14,
-  },
-  mediumText: {
-    fontSize: 16,
-  },
-  largeText: {
-    fontSize: 18,
-  },
-});
+const createStyles = (
+  isDark: boolean, 
+  variant: string, 
+  size: string, 
+  isDisabled: boolean,
+  fullWidth: boolean
+) => {
+  const colors = isDark ? IOS_COLORS : IOS_COLORS;
+  
+  // Obtener estilo base según variante
+  let buttonStyle: any = {};
+  let textColor = "";
+
+  switch (variant) {
+    case "primary":
+      buttonStyle = {
+        backgroundColor: getIOSColor(colors.systemBlue, isDark),
+        ...IOS_SHADOWS.small,
+      };
+      textColor = "#FFFFFF";
+      break;
+    
+    case "secondary":
+      buttonStyle = {
+        backgroundColor: getIOSColor(colors.fill.tertiary, isDark),
+      };
+      textColor = getIOSColor(colors.label.primary, isDark);
+      break;
+    
+    case "outline":
+      buttonStyle = {
+        backgroundColor: "transparent",
+        borderWidth: 1.5,
+        borderColor: getIOSColor(colors.systemBlue, isDark),
+      };
+      textColor = getIOSColor(colors.systemBlue, isDark);
+      break;
+    
+    case "danger":
+      buttonStyle = {
+        backgroundColor: getIOSColor(colors.red, isDark),
+        ...IOS_SHADOWS.small,
+      };
+      textColor = "#FFFFFF";
+      break;
+    
+    case "text":
+      buttonStyle = {
+        backgroundColor: "transparent",
+      };
+      textColor = getIOSColor(colors.systemBlue, isDark);
+      break;
+  }
+
+  // Obtener padding según tamaño
+  let padding = {};
+  let fontSize = 17;
+  let fontWeight: any = '600';
+
+  switch (size) {
+    case "small":
+      padding = {
+        paddingVertical: IOS_SPACING.sm,
+        paddingHorizontal: IOS_SPACING.md,
+      };
+      fontSize = 15;
+      break;
+    
+    case "medium":
+      padding = {
+        paddingVertical: IOS_SPACING.md,
+        paddingHorizontal: IOS_SPACING.lg,
+      };
+      fontSize = 17;
+      fontWeight = '600';
+      break;
+    
+    case "large":
+      padding = {
+        paddingVertical: IOS_SPACING.lg,
+        paddingHorizontal: IOS_SPACING.xl,
+      };
+      fontSize = 17;
+      fontWeight = '600';
+      break;
+  }
+
+  return StyleSheet.create({
+    button: {
+      ...buttonStyle,
+      ...padding,
+      borderRadius: IOS_RADIUS.button,
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "row",
+      minHeight: 44, // Mínimo de iOS para touch targets
+      width: fullWidth ? "100%" : "auto",
+      opacity: isDisabled ? 0.4 : 1,
+    },
+    text: {
+      fontSize,
+      fontWeight,
+      color: textColor,
+      letterSpacing: -0.41,
+    },
+  });
+};
 
 export default Button;

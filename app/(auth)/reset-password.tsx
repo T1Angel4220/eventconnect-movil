@@ -8,32 +8,35 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  useColorScheme,
+  SafeAreaView,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Button, Input, PasswordStrength } from "@/src/components";
+import { validatePassword, getPasswordStrength } from "@/src/utils";
 import { authService } from "@/src/services";
-import { validatePassword, validatePasswordMatch } from "@/src/utils";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "@/src/hooks";
+import { IOS_TYPOGRAPHY, IOS_SPACING, IOS_RADIUS, IOS_COLORS, getIOSColor } from "@/src/constants/iosStyles";
 
 /**
- * Pantalla de Reseteo de Contraseña
- * Permite cambiar la contraseña con el código verificado
+ * Pantalla de Restablecer Contraseña - Estilo iOS/Apple
  */
 export default function ResetPasswordScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ email?: string; resetId?: string }>();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const { isDark } = useTheme();
 
   const email = params.email || "";
   const resetId = params.resetId ? parseInt(params.resetId) : undefined;
 
-  const [newPassword, setNewPassword] = useState("");
+  const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [newPasswordError, setNewPasswordError] = useState("");
-  const [confirmPasswordError, setConfirmPasswordError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [confirmError, setConfirmError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const styles = createStyles(isDark);
+  const passwordStrength = getPasswordStrength(password);
 
   /**
    * Valida el formulario
@@ -41,55 +44,51 @@ export default function ResetPasswordScreen() {
   const validateForm = (): boolean => {
     let isValid = true;
 
-    // Validar nueva contraseña
-    const passwordValidation = validatePassword(newPassword);
+    const passwordValidation = validatePassword(password);
     if (!passwordValidation.isValid) {
-      setNewPasswordError(passwordValidation.error || "");
+      setPasswordError(passwordValidation.error || "");
       isValid = false;
     } else {
-      setNewPasswordError("");
+      setPasswordError("");
     }
 
-    // Validar confirmación
-    const matchValidation = validatePasswordMatch(newPassword, confirmPassword);
-    if (!matchValidation.isValid) {
-      setConfirmPasswordError(matchValidation.error || "");
+    if (password !== confirmPassword) {
+      setConfirmError("Las contraseñas no coinciden");
       isValid = false;
     } else {
-      setConfirmPasswordError("");
+      setConfirmError("");
     }
 
     return isValid;
   };
 
   /**
-   * Resetea la contraseña
+   * Maneja el cambio de contraseña
    */
   const handleResetPassword = async () => {
+    if (!validateForm()) return;
+
     if (!email || !resetId) {
-      Alert.alert("Error", "Datos de verificación no válidos");
+      Alert.alert("Error", "Datos de recuperación no válidos");
       return;
     }
-
-    if (!validateForm()) return;
 
     try {
       setIsLoading(true);
 
       const result = await authService.resetPassword({
         email,
-        code: "", // No se usa pero mantenemos la interfaz
-        new_password: newPassword,
-        resetId, // Enviar resetId al backend
+        resetId,
+        newPassword: password,
       });
 
       if (result.success) {
         Alert.alert(
           "¡Contraseña Actualizada!",
-          "Tu contraseña ha sido cambiada exitosamente",
+          "Tu contraseña ha sido cambiada exitosamente. Ahora puedes iniciar sesión.",
           [
             {
-              text: "Ir a Login",
+              text: "Iniciar Sesión",
               onPress: () => router.replace("/(auth)/login"),
             },
           ]
@@ -99,223 +98,230 @@ export default function ResetPasswordScreen() {
       }
     } catch (error) {
       Alert.alert("Error", "Ocurrió un error al cambiar la contraseña");
-      console.error("Error reseteando contraseña:", error);
+      console.error("Error en reset password:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const styles = createStyles(isDark);
-
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        {/* Botón de volver */}
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons 
-            name="arrow-back" 
-            size={24} 
-            color={isDark ? "#ffffff" : "#000000"} 
-          />
-        </TouchableOpacity>
-
-        {/* Header con icono */}
-        <View style={styles.header}>
-          <View style={styles.iconContainer}>
+          {/* Botón de volver estilo iOS */}
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons 
-              name="key" 
-              size={64} 
-              color={isDark ? "#000000" : "#ffffff"} 
+              name="chevron-back" 
+              size={28} 
+              color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
             />
+            <Text style={styles.backText}>Volver</Text>
+          </TouchableOpacity>
+
+          {/* Espaciador */}
+          <View style={styles.spacer} />
+
+          {/* Icono central */}
+          <View style={styles.iconContainer}>
+            <View style={styles.iconCircle}>
+              <Ionicons 
+                name="lock-closed" 
+                size={44} 
+                color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+              />
+            </View>
           </View>
-          <Text style={styles.title}>Event Connect</Text>
-          <Text style={styles.subtitle}>Nueva Contraseña</Text>
-        </View>
 
-        {/* Card de reset */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Restablecer Contraseña</Text>
-          <Text style={styles.description}>
-            Ingresa tu nueva contraseña. Asegúrate de que sea segura y diferente a la anterior.
-          </Text>
+          {/* Título y descripción */}
+          <View style={styles.headerContainer}>
+            <Text style={styles.title}>Crear Nueva Contraseña</Text>
+            <Text style={styles.subtitle}>
+              Tu nueva contraseña debe ser diferente a las anteriores
+            </Text>
+          </View>
 
-          <View style={styles.form}>
+          {/* Formulario */}
+          <View style={styles.formContainer}>
             <Input
-              label="Nueva Contraseña"
-              placeholder="••••••••"
-              value={newPassword}
+              label="Nueva contraseña"
+              placeholder="Mínimo 8 caracteres"
+              value={password}
               onChangeText={(text) => {
-                setNewPassword(text);
-                setNewPasswordError("");
+                setPassword(text);
+                setPasswordError("");
               }}
-              error={newPasswordError}
+              error={passwordError}
               icon="lock-closed-outline"
               isPassword
-              autoFocus
             />
 
-            <PasswordStrength password={newPassword} />
+            {password.length > 0 && (
+              <PasswordStrength strength={passwordStrength} />
+            )}
 
             <Input
-              label="Confirmar Nueva Contraseña"
-              placeholder="••••••••"
+              label="Confirmar contraseña"
+              placeholder="Confirma tu nueva contraseña"
               value={confirmPassword}
               onChangeText={(text) => {
                 setConfirmPassword(text);
-                setConfirmPasswordError("");
+                setConfirmError("");
               }}
-              error={confirmPasswordError}
+              error={confirmError}
               icon="lock-closed-outline"
               isPassword
             />
 
-            <View style={styles.infoBox}>
+            {/* Info card */}
+            <View style={styles.infoCard}>
               <Ionicons 
                 name="information-circle" 
-                size={20} 
-                color={isDark ? "#9ca3af" : "#6b7280"} 
+                size={18} 
+                color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+                style={styles.infoIcon}
               />
               <Text style={styles.infoText}>
-                La contraseña debe tener al menos 8 caracteres, incluir letras mayúsculas, minúsculas, números y caracteres especiales.
+                Usa al menos 8 caracteres con una combinación de letras, números y símbolos.
               </Text>
             </View>
 
+            {/* Botón de restablecer */}
             <Button
-              title="Cambiar Contraseña"
+              title="Restablecer Contraseña"
               onPress={handleResetPassword}
               loading={isLoading}
               fullWidth
-              style={styles.submitButton}
+              style={styles.resetButton}
             />
-          </View>
-        </View>
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            © 2025 Event Connect - Sistema de Gestión Universitaria
-          </Text>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {/* Volver al login */}
+            <TouchableOpacity 
+              onPress={() => router.replace("/(auth)/login")}
+              style={styles.loginButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.loginLink}>Volver al inicio de sesión</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Espaciador inferior */}
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
-const createStyles = (isDark: boolean) =>
-  StyleSheet.create({
+const createStyles = (isDark: boolean) => {
+  const colors = isDark ? IOS_COLORS : IOS_COLORS;
+  
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: getIOSColor(colors.background.primary, isDark),
+    },
     container: {
       flex: 1,
-      backgroundColor: isDark ? "#000000" : "#ffffff",
     },
     scrollContent: {
       flexGrow: 1,
-      justifyContent: "center",
-      padding: 24,
-      paddingTop: 60,
+      paddingHorizontal: IOS_SPACING.lg,
+      paddingBottom: IOS_SPACING.xl,
     },
     backButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: isDark ? "#1f2937" : "#f3f4f6",
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 24,
-      alignSelf: "flex-start",
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: IOS_SPACING.sm,
+      marginTop: IOS_SPACING.sm,
+      marginLeft: -IOS_SPACING.sm,
     },
-    header: {
-      alignItems: "center",
-      marginBottom: 32,
+    backText: {
+      ...IOS_TYPOGRAPHY.body,
+      color: getIOSColor(colors.systemBlue, isDark),
+      marginLeft: 2,
+    },
+    spacer: {
+      height: IOS_SPACING.xxxl,
     },
     iconContainer: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
-      backgroundColor: isDark ? "#ffffff" : "#000000",
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 20,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 8,
+      alignItems: 'center',
+      marginBottom: IOS_SPACING.xl,
+    },
+    iconCircle: {
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      backgroundColor: isDark 
+        ? 'rgba(10, 132, 255, 0.15)' 
+        : 'rgba(0, 122, 255, 0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerContainer: {
+      alignItems: 'center',
+      marginBottom: IOS_SPACING.xxxl,
+      paddingHorizontal: IOS_SPACING.sm,
     },
     title: {
-      fontSize: 32,
-      fontWeight: "bold",
-      color: isDark ? "#ffffff" : "#000000",
-      marginBottom: 8,
-      textAlign: "center",
+      ...IOS_TYPOGRAPHY.largeTitle,
+      color: getIOSColor(colors.label.primary, isDark),
+      marginBottom: IOS_SPACING.md,
+      textAlign: 'center',
     },
     subtitle: {
-      fontSize: 16,
-      color: isDark ? "#9ca3af" : "#6b7280",
-      textAlign: "center",
+      ...IOS_TYPOGRAPHY.body,
+      color: getIOSColor(colors.label.secondary, isDark),
+      textAlign: 'center',
+      lineHeight: 24,
     },
-    card: {
-      backgroundColor: isDark ? "#000000" : "#ffffff",
-      borderRadius: 16,
-      borderWidth: 2,
-      borderColor: isDark ? "#ffffff" : "#e5e7eb",
-      padding: 24,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.2,
-      shadowRadius: 16,
-      elevation: 10,
+    formContainer: {
+      gap: IOS_SPACING.md,
     },
-    cardTitle: {
-      fontSize: 20,
-      fontWeight: "bold",
-      color: isDark ? "#ffffff" : "#000000",
-      marginBottom: 12,
-      textAlign: "center",
+    infoCard: {
+      flexDirection: 'row',
+      backgroundColor: isDark
+        ? 'rgba(142, 142, 147, 0.16)'
+        : 'rgba(120, 120, 128, 0.12)',
+      borderRadius: IOS_RADIUS.medium,
+      padding: IOS_SPACING.md,
+      marginTop: IOS_SPACING.sm,
     },
-    description: {
-      fontSize: 14,
-      color: isDark ? "#9ca3af" : "#6b7280",
-      textAlign: "center",
-      marginBottom: 24,
-      lineHeight: 20,
-    },
-    form: {
-      gap: 16,
-    },
-    infoBox: {
-      flexDirection: "row",
-      backgroundColor: isDark ? "#1f2937" : "#f3f4f6",
-      borderRadius: 12,
-      padding: 16,
-      gap: 12,
-      alignItems: "flex-start",
+    infoIcon: {
+      marginRight: IOS_SPACING.sm,
+      marginTop: 1,
     },
     infoText: {
+      ...IOS_TYPOGRAPHY.footnote,
+      color: getIOSColor(colors.label.secondary, isDark),
       flex: 1,
-      fontSize: 12,
-      color: isDark ? "#9ca3af" : "#6b7280",
       lineHeight: 18,
     },
-    submitButton: {
-      marginTop: 8,
+    resetButton: {
+      marginTop: IOS_SPACING.md,
     },
-    footer: {
-      marginTop: 32,
-      alignItems: "center",
+    loginButton: {
+      alignItems: 'center',
+      paddingVertical: IOS_SPACING.md,
+      marginTop: IOS_SPACING.sm,
     },
-    footerText: {
-      fontSize: 12,
-      color: isDark ? "#6b7280" : "#9ca3af",
-      textAlign: "center",
+    loginLink: {
+      ...IOS_TYPOGRAPHY.body,
+      color: getIOSColor(colors.systemBlue, isDark),
+      fontWeight: '600',
+    },
+    bottomSpacer: {
+      height: IOS_SPACING.xxxl,
     },
   });
+};
