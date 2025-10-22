@@ -34,10 +34,10 @@ class AuthService {
       
       return response.data;
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getErrorMessage(error) || 'Error al iniciar sesión';
       return {
         success: false,
-        message,
+        message: String(message), // Asegurar que siempre sea string
       };
     }
   }

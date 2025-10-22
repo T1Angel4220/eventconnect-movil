@@ -124,7 +124,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('❌ Login fallido:', result.message);
       return {
         success: false,
-        message: result.message || 'Error al iniciar sesión',
+        message: String(result.message || 'Error al iniciar sesión'),
       };
     } catch (error) {
       console.error('Error en login:', error);
