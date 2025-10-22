@@ -131,6 +131,24 @@ class UserService {
   }
 
   /**
+   * Elimina la cuenta del usuario
+   */
+  async deleteAccount(password: string): Promise<ApiResponse> {
+    try {
+      const response = await api.delete<ApiResponse>('/organizer/account', {
+        data: { password },
+      });
+      return response.data;
+    } catch (error) {
+      const message = getErrorMessage(error);
+      return {
+        success: false,
+        message,
+      };
+    }
+  }
+
+  /**
    * Obtiene la URL completa de una imagen de perfil
    */
   getImageUrl(profileImage?: string): string {

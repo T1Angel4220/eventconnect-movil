@@ -1,7 +1,7 @@
 // Componente de Alerta estilo iOS nativo
 // Replica el diseño de UIAlertController de iOS
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Modal,
   View,
@@ -10,15 +10,19 @@ import {
   TouchableOpacity,
   Dimensions,
   Platform,
+  TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { BlurView } from "expo-blur";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/hooks";
 import { IOS_COLORS, getIOSColor, IOS_RADIUS } from "@/src/constants/iosStyles";
 
 export interface AlertButton {
   text: string;
-  onPress?: () => void;
+  onPress?: (inputValue?: string) => void;
   style?: "default" | "cancel" | "destructive";
+  loading?: boolean;
 }
 
 interface IOSAlertProps {
@@ -27,6 +31,13 @@ interface IOSAlertProps {
   message?: string;
   buttons?: AlertButton[];
   onDismiss?: () => void;
+  // Nuevas props para input
+  showInput?: boolean;
+  inputPlaceholder?: string;
+  inputValue?: string;
+  onInputChange?: (text: string) => void;
+  secureTextEntry?: boolean;
+  isLoading?: boolean;
 }
 
 export const IOSAlert: React.FC<IOSAlertProps> = ({
@@ -35,15 +46,28 @@ export const IOSAlert: React.FC<IOSAlertProps> = ({
   message,
   buttons = [{ text: "OK", style: "default" }],
   onDismiss,
+  showInput = false,
+  inputPlaceholder = "",
+  inputValue = "",
+  onInputChange,
+  secureTextEntry = false,
+  isLoading = false,
 }) => {
   const { isDark } = useTheme();
   const styles = createStyles(isDark);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleButtonPress = (button: AlertButton) => {
+    if (button.loading || isLoading) return;
     if (button.onPress) {
-      button.onPress();
+      // Si hay un input visible, pasar el valor del input al callback
+      if (showInput) {
+        button.onPress(inputValue);
+      } else {
+        button.onPress();
+      }
     }
-    if (onDismiss) {
+    if (onDismiss && !button.loading) {
       onDismiss();
     }
   };
@@ -101,9 +125,39 @@ export const IOSAlert: React.FC<IOSAlertProps> = ({
 
             {/* Message */}
             {message && (
-              <Text style={[styles.message, !title && styles.messageOnly]}>
+              <Text style={[styles.message, !title && styles.messageOnly, showInput && styles.messageWithInput]}>
                 {message}
               </Text>
+            )}
+
+            {/* Input (si se solicita) */}
+            {showInput && (
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={styles.input}
+                  value={inputValue}
+                  onChangeText={onInputChange}
+                  placeholder={inputPlaceholder}
+                  placeholderTextColor={isDark ? "rgba(235, 235, 245, 0.3)" : "rgba(60, 60, 67, 0.3)"}
+                  secureTextEntry={secureTextEntry && !showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
+                />
+                {secureTextEntry && (
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowPassword(!showPassword)}
+                    disabled={isLoading}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-off" : "eye"}
+                      size={18}
+                      color={isDark ? "rgba(235, 235, 245, 0.6)" : "rgba(60, 60, 67, 0.6)"}
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
 
             {/* Buttons */}
@@ -114,8 +168,16 @@ export const IOSAlert: React.FC<IOSAlertProps> = ({
                   style={getButtonStyle(button, index)}
                   onPress={() => handleButtonPress(button)}
                   activeOpacity={0.6}
+                  disabled={button.loading || isLoading}
                 >
-                  <Text style={getButtonTextStyle(button)}>{button.text}</Text>
+                  {button.loading ? (
+                    <ActivityIndicator 
+                      size="small" 
+                      color={button.style === "destructive" ? "#FF3B30" : "#007AFF"} 
+                    />
+                  ) : (
+                    <Text style={getButtonTextStyle(button)}>{button.text}</Text>
+                  )}
                 </TouchableOpacity>
               ))}
             </View>
@@ -188,6 +250,41 @@ const createStyles = (isDark: boolean) => {
     },
     messageOnly: {
       paddingTop: 20,
+    },
+    messageWithInput: {
+      paddingBottom: 12,
+    },
+
+    // Input Container
+    inputContainer: {
+      paddingHorizontal: 16,
+      paddingBottom: 16,
+      position: 'relative',
+    },
+    input: {
+      backgroundColor: isDark
+        ? "rgba(118, 118, 128, 0.24)"
+        : "rgba(255, 255, 255, 0.9)",
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      paddingRight: 40,
+      fontSize: 14,
+      color: isDark
+        ? getIOSColor(IOS_COLORS.label.primary, isDark)
+        : "#000000",
+      borderWidth: 0.5,
+      borderColor: isDark
+        ? "rgba(84, 84, 88, 0.65)"
+        : "rgba(60, 60, 67, 0.29)",
+    },
+    eyeButton: {
+      position: 'absolute',
+      right: 24,
+      top: '40%',
+      marginTop: -9, // La mitad del tamaño del ícono (18px / 2)
+      paddingHorizontal: 8,
+      paddingVertical: 4,
     },
 
     // Buttons Container
