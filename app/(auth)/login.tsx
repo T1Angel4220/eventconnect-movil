@@ -131,7 +131,7 @@ export default function LoginScreen() {
               resizeMode="contain"
             />
             <Text style={styles.brandTitle}>Event Connect</Text>
-            <Text style={styles.brandSubtitle}>Sistema de Gestión de Eventos</Text>
+<Text style={styles.brandSubtitle}>Gestiona tu participación en eventos</Text>
           </View>
 
           {/* Toggle tema - ciclo entre system/light/dark */}

@@ -1,42 +1,71 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   SafeAreaView,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth, useTheme } from "@/src/hooks";
 import { IOS_TYPOGRAPHY, IOS_SPACING, IOS_RADIUS, IOS_COLORS, IOS_SHADOWS, getIOSColor } from "@/src/constants/iosStyles";
+import { IOSAlert, AlertButton } from "@/src/components";
 
 /**
  * Pantalla de Perfil de Usuario - Estilo iOS/Apple
  */
 export default function ProfileScreen() {
+  const router = useRouter();
   const { user, logout } = useAuth();
   const { theme, isDark, toggleTheme, setTheme } = useTheme();
 
+  // Estado para la alerta iOS
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons: AlertButton[];
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    buttons: [{ text: "OK", style: "default" }],
+  });
+
   const styles = createStyles(isDark);
+
+  /**
+   * Ejecuta el logout y redirige al login
+   */
+  const performLogout = async () => {
+    try {
+      await logout();
+      // Redirigir al login después de cerrar sesión
+      router.replace("/(auth)/login");
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+    }
+  };
 
   /**
    * Maneja el cierre de sesión
    */
   const handleLogout = () => {
-    Alert.alert(
-      "Cerrar Sesión",
-      "¿Estás seguro que deseas cerrar sesión?",
-      [
+    setAlertConfig({
+      visible: true,
+      title: "Cerrar Sesión",
+      message: "¿Estás seguro que deseas cerrar sesión?",
+      buttons: [
         { text: "Cancelar", style: "cancel" },
         {
           text: "Cerrar Sesión",
           style: "destructive",
-          onPress: logout,
+          onPress: performLogout,
         },
-      ]
-    );
+      ],
+    });
   };
 
   /**
@@ -229,6 +258,15 @@ export default function ProfileScreen() {
           Sistema de Gestión de Eventos Universitarios
         </Text>
       </ScrollView>
+
+      {/* Alerta iOS */}
+      <IOSAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={() => setAlertConfig({ ...alertConfig, visible: false })}
+      />
     </SafeAreaView>
   );
 }
