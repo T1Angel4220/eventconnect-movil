@@ -34,10 +34,10 @@ class AuthService {
       
       return response.data;
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getErrorMessage(error) || 'Error al iniciar sesión';
       return {
         success: false,
-        message,
+        message: String(message), // Asegurar que siempre sea string
       };
     }
   }
@@ -167,7 +167,8 @@ class AuthService {
   async checkAuth(): Promise<boolean> {
     try {
       // Intenta hacer una petición simple para verificar el token
-      const response = await api.get('/auth/me');
+      // Usamos el endpoint de perfil que existe en el backend
+      const response = await api.get('/organizer/profile');
       return response.status === 200;
     } catch (error) {
       return false;

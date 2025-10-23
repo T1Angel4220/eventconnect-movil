@@ -2,8 +2,8 @@
 
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { User, LoginCredentials, RegisterData } from '@/src/types';
-import { authService } from '@/src/services';
-import { getToken, getUser, saveToken, saveUser, clearAuthData } from '@/src/utils/storage';
+import { authService, userService } from '@/src/services';
+import { getToken, getUser, saveUser, clearAuthData } from '@/src/utils/storage';
 
 /**
  * Tipo del contexto de autenticación
@@ -21,6 +21,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   updateUser: (user: User) => Promise<void>;
   refreshAuth: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 /**
@@ -123,7 +124,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('❌ Login fallido:', result.message);
       return {
         success: false,
-        message: result.message || 'Error al iniciar sesión',
+        message: String(result.message || 'Error al iniciar sesión'),
       };
     } catch (error) {
       console.error('Error en login:', error);
@@ -229,6 +230,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   /**
+   * Refresca los datos del usuario desde el servidor
+   */
+  const refreshUser = async (): Promise<void> => {
+    try {
+      console.log('🔄 Refrescando datos del usuario...');
+      
+      // Obtener datos actualizados del servidor
+      const result = await userService.getMyProfile();
+      
+      if (result.success && result.data) {
+        // Guardar en AsyncStorage
+        await saveUser(result.data);
+        
+        // Actualizar en estado
+        setUser(result.data);
+        
+        console.log('✅ Datos del usuario actualizados');
+      } else {
+        console.log('⚠️ No se pudieron obtener los datos actualizados del usuario');
+      }
+    } catch (error) {
+      console.error('Error refrescando usuario:', error);
+    }
+  };
+
+  /**
    * Valor del contexto
    */
   const value: AuthContextType = {
@@ -241,6 +268,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     updateUser,
     refreshAuth,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

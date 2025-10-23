@@ -9,13 +9,14 @@ import {
   RefreshControl,
   Image,
   SafeAreaView,
+  ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth, useTheme } from "@/src/hooks";
 import { eventService } from "@/src/services";
-import { EventWithOrganizer } from "@/src/types";
-import { Loading, ErrorMessage } from "@/src/components";
+import { EventWithOrganizer, EventFilters } from "@/src/types";
+import { Loading, ErrorMessage, EventFiltersModal } from "@/src/components";
 import {
   formatDate,
   formatTime,
@@ -36,38 +37,50 @@ export default function EventsScreen() {
   const { isDark, toggleTheme, theme } = useTheme();
 
   const [events, setEvents] = useState<EventWithOrganizer[]>([]);
-  const [filteredEvents, setFilteredEvents] = useState<EventWithOrganizer[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<"all" | "academic" | "cultural" | "sports">("all");
+  const [selectedCategory, setSelectedCategory] = useState<"all" | "academico" | "cultural" | "deportivo">("all");
   const [error, setError] = useState("");
+  
+  // Estados para filtros avanzados
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<EventFilters>({});
 
-  const styles = createStyles(isDark);
+  // Memoizar estilos para evitar recreación en cada render
+  const styles = React.useMemo(() => createStyles(isDark), [isDark]);
 
   // Categorías para filtrar
-  const categories = [
+  const categories = React.useMemo(() => [
     { key: "all", label: "Todos", icon: "apps" },
-    { key: "academic", label: "Académico", icon: "school" },
+    { key: "academico", label: "Académico", icon: "school" },
     { key: "cultural", label: "Cultural", icon: "color-palette" },
-    { key: "sports", label: "Deportivo", icon: "football" },
-  ] as const;
+    { key: "deportivo", label: "Deportivo", icon: "football" },
+  ] as const, []);
 
   /**
-   * Carga los eventos
+   * Carga los eventos con filtros avanzados
    */
-  const loadEvents = async () => {
+  const loadEvents = React.useCallback(async () => {
     try {
       setError("");
-      const result = await eventService.getAllEvents();
+      
+      // Construir filtros combinando categoría local con filtros avanzados
+      const filters: EventFilters = {
+        ...activeFilters,
+        // Agregar filtro de categoría si no es "all"
+        eventType: selectedCategory !== 'all' ? selectedCategory : activeFilters.eventType,
+        // Usar sortBy por defecto si no hay filtros activos
+        sortBy: activeFilters.sortBy || 'date',
+        sortOrder: activeFilters.sortOrder || 'asc',
+      };
+
+      console.log('🔍 Cargando eventos con filtros:', filters);
+      const result = await eventService.getEventsWithFilters(filters);
 
       if (result.success && result.data) {
-        const sortedEvents = result.data.sort((a, b) => {
-          return new Date(a.event_date).getTime() - new Date(b.event_date).getTime();
-        });
-        
-        setEvents(sortedEvents);
-        filterEvents(sortedEvents, searchQuery, selectedCategory);
+        setEvents(result.data);
+        console.log('✅ Eventos cargados:', result.data.length);
       } else {
         setError(result.message || "Error al cargar eventos");
       }
@@ -78,68 +91,96 @@ export default function EventsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [activeFilters, selectedCategory]);
 
   useEffect(() => {
     loadEvents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadEvents]);
+
+  /**
+   * Filtra eventos localmente (solo búsqueda)
+   * Los filtros de categoría y avanzados se aplican en el backend
+   */
+  const filteredEvents = React.useMemo(() => {
+    let filtered = events;
+
+    // Filtrar por búsqueda local (solo búsqueda de texto)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((event) => {
+        const matchTitle = event.title.toLowerCase().includes(query);
+        const matchDesc = event.description?.toLowerCase().includes(query) || false;
+        const matchLocation = event.location?.toLowerCase().includes(query) || false;
+        return matchTitle || matchDesc || matchLocation;
+      });
+    }
+
+    return filtered;
+  }, [events, searchQuery]);
+
+  /**
+   * Contador de filtros activos
+   */
+  const activeFiltersCount = React.useMemo(() => {
+    let count = 0;
+    if (activeFilters.dateRange) count++;
+    if (activeFilters.location) count++;
+    if (activeFilters.eventType) count++;
+    if (activeFilters.status) count++;
+    if (activeFilters.sortBy && activeFilters.sortBy !== 'date') count++;
+    return count;
+  }, [activeFilters]);
+
+  /**
+   * Aplicar filtros avanzados
+   */
+  const handleApplyFilters = React.useCallback((filters: EventFilters) => {
+    console.log('🎯 Aplicando filtros en index:', filters);
+    setActiveFilters(filters);
+    
+    // Si se seleccionó un tipo de evento en filtros avanzados, limpiar categoría local
+    if (filters.eventType) {
+      setSelectedCategory('all');
+    }
+    
+    setShowFiltersModal(false);
   }, []);
 
   /**
-   * Filtra eventos por búsqueda y categoría
+   * Limpiar todos los filtros
    */
-  const filterEvents = (
-    eventsList: EventWithOrganizer[],
-    query: string,
-    category: typeof selectedCategory
-  ) => {
-    let filtered = eventsList;
-
-    if (category !== "all") {
-      filtered = filtered.filter((event) => event.event_type === category);
-    }
-
-    if (query.trim()) {
-      filtered = filtered.filter(
-        (event) =>
-          event.title.toLowerCase().includes(query.toLowerCase()) ||
-          event.description?.toLowerCase().includes(query.toLowerCase())
-      );
-    }
-
-    setFilteredEvents(filtered);
-  };
-
-  /**
-   * Maneja el cambio de búsqueda
-   */
-  const handleSearch = (text: string) => {
-    setSearchQuery(text);
-    filterEvents(events, text, selectedCategory);
-  };
-
-  /**
-   * Maneja el cambio de categoría
-   */
-  const handleCategoryChange = (category: typeof selectedCategory) => {
-    setSelectedCategory(category);
-    filterEvents(events, searchQuery, category);
-  };
+  const handleClearAllFilters = React.useCallback(() => {
+    setActiveFilters({});
+    setSelectedCategory('all');
+    setSearchQuery('');
+  }, []);
 
 
   /**
-   * Render de cada evento
+   * Render de cada evento - Memoizado
    */
-  const renderEvent = ({ item }: { item: EventWithOrganizer }) => {
+  const renderEvent = React.useCallback(({ item }: { item: EventWithOrganizer }) => {
     const occupancy = getOccupancyPercentage(item.registered_count || 0, item.capacity);
     const isFull = occupancy >= 100;
     const isAlmostFull = occupancy >= 80 && occupancy < 100;
 
+    // Normalizar tipo de evento a lowercase para comparaciones
+    const eventType = item.event_type.toLowerCase();
+
     // Colores según categoría
-    const categoryColors = {
-      academic: getIOSColor(IOS_COLORS.systemBlue, isDark),
-      cultural: getIOSColor(IOS_COLORS.purple, isDark),
-      sports: getIOSColor(IOS_COLORS.green, isDark),
+    const getCategoryColor = () => {
+      if (eventType === "academico") return getIOSColor(IOS_COLORS.systemBlue, isDark);
+      if (eventType === "cultural") return getIOSColor(IOS_COLORS.purple, isDark);
+      if (eventType === "deportivo") return getIOSColor(IOS_COLORS.green, isDark);
+      return getIOSColor(IOS_COLORS.systemGray, isDark);
+    };
+
+    // Icono según categoría
+    const getCategoryIcon = () => {
+      if (eventType === "academico") return "school";
+      if (eventType === "cultural") return "color-palette";
+      if (eventType === "deportivo") return "football";
+      return "calendar";
     };
 
     return (
@@ -160,17 +201,11 @@ export default function EventsScreen() {
           <View
             style={[
               styles.categoryBadge,
-              { backgroundColor: categoryColors[item.event_type] },
+              { backgroundColor: getCategoryColor() },
             ]}
           >
             <Ionicons
-              name={
-                item.event_type === "academic"
-                  ? "school"
-                  : item.event_type === "cultural"
-                  ? "color-palette"
-                  : "football"
-              }
+              name={getCategoryIcon() as any}
               size={12}
               color="#FFFFFF"
             />
@@ -238,86 +273,16 @@ export default function EventsScreen() {
         </View>
       </TouchableOpacity>
     );
-  };
+  }, [router, isDark, styles]);
 
   /**
-   * Header de la lista
+   * Header simplificado - Solo el título de sección
    */
-  const ListHeader = () => (
-    <View style={styles.headerContainer}>
-      {/* Saludo */}
-      <View style={styles.greetingContainer}>
-        <View>
-          <Text style={styles.greetingText}>Hola,</Text>
-          <Text style={styles.userName}>{user?.first_name || "Usuario"} 👋</Text>
-        </View>
-        <TouchableOpacity
-          onPress={toggleTheme}
-          style={styles.themeToggle}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons
-            name={theme === 'system' ? 'phone-portrait-outline' : isDark ? "sunny" : "moon"}
-            size={24}
-            color={getIOSColor(IOS_COLORS.label.primary, isDark)}
-          />
-        </TouchableOpacity>
-      </View>
-
-      {/* Barra de búsqueda estilo iOS */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={18} color={getIOSColor(IOS_COLORS.label.tertiary, isDark)} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar eventos..."
-          value={searchQuery}
-          onChangeText={handleSearch}
-          placeholderTextColor={getIOSColor(IOS_COLORS.label.tertiary, isDark)}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => handleSearch("")} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="close-circle" size={18} color={getIOSColor(IOS_COLORS.label.tertiary, isDark)} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Filtros de categoría */}
-      <View style={styles.categoriesContainer}>
-        {categories.map((category) => (
-          <TouchableOpacity
-            key={category.key}
-            style={[
-              styles.categoryChip,
-              selectedCategory === category.key && styles.categoryChipActive,
-            ]}
-            onPress={() => handleCategoryChange(category.key as typeof selectedCategory)}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name={category.icon as any}
-              size={16}
-              color={
-                selectedCategory === category.key
-                  ? "#FFFFFF"
-                  : getIOSColor(IOS_COLORS.label.primary, isDark)
-              }
-            />
-            <Text
-              style={[
-                styles.categoryChipText,
-                selectedCategory === category.key && styles.categoryChipTextActive,
-              ]}
-            >
-              {category.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Título de sección */}
+  const ListHeader = React.useCallback(() => (
+    <View style={styles.listHeaderContainer}>
       <Text style={styles.sectionTitle}>Próximos Eventos</Text>
     </View>
-  );
+  ), [styles]);
 
   /**
    * Empty state
@@ -344,6 +309,146 @@ export default function EventsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {/* Header FUERA del FlatList para que el teclado no se cierre */}
+      <View style={styles.headerContainer}>
+        {/* Saludo */}
+        <View style={styles.greetingContainer}>
+          <View>
+            <Text style={styles.greetingText}>Hola,</Text>
+            <Text style={styles.userName}>{user?.first_name || "Usuario"} 👋</Text>
+          </View>
+          {/* Toggle de tema */}
+          <TouchableOpacity
+            onPress={toggleTheme}
+            style={styles.themeToggle}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name={theme === 'system' ? 'phone-portrait-outline' : isDark ? "sunny" : "moon"}
+              size={24}
+              color={getIOSColor(IOS_COLORS.label.primary, isDark)}
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Barra de búsqueda con filtros */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={18} color={getIOSColor(IOS_COLORS.label.tertiary, isDark)} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar eventos..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor={getIOSColor(IOS_COLORS.label.tertiary, isDark)}
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery("")} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close-circle" size={18} color={getIOSColor(IOS_COLORS.label.tertiary, isDark)} />
+            </TouchableOpacity>
+          )}
+          {/* Botón de filtros avanzados */}
+          <TouchableOpacity
+            onPress={() => setShowFiltersModal(true)}
+            style={styles.filterButtonInSearch}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name="options-outline"
+              size={20}
+              color={getIOSColor(IOS_COLORS.label.primary, isDark)}
+            />
+            {activeFiltersCount > 0 && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>{activeFiltersCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Filtros de categoría - FUERA del FlatList */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoriesContainer}
+          style={styles.categoriesScroll}
+        >
+          {categories.map((category) => (
+            <TouchableOpacity
+              key={category.key}
+              style={[
+                styles.categoryChip,
+                selectedCategory === category.key && styles.categoryChipActive,
+              ]}
+              onPress={() => setSelectedCategory(category.key as typeof selectedCategory)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={category.icon as any}
+                size={16}
+                color={
+                  selectedCategory === category.key
+                    ? "#FFFFFF"
+                    : getIOSColor(IOS_COLORS.label.primary, isDark)
+                }
+              />
+              <Text
+                style={[
+                  styles.categoryChipText,
+                  selectedCategory === category.key && styles.categoryChipTextActive,
+                ]}
+              >
+                {category.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Chips de filtros activos */}
+        {activeFiltersCount > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.activeFiltersContainer}
+            style={styles.activeFiltersScroll}
+          >
+            <TouchableOpacity
+              style={styles.clearFiltersChip}
+              onPress={handleClearAllFilters}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close-circle" size={16} color="#FFFFFF" />
+              <Text style={styles.clearFiltersText}>Limpiar ({activeFiltersCount})</Text>
+            </TouchableOpacity>
+            
+            {activeFilters.dateRange && (
+              <View style={styles.activeFilterChip}>
+                <Ionicons name="calendar" size={14} color={getIOSColor(IOS_COLORS.systemBlue, isDark)} />
+                <Text style={styles.activeFilterText}>
+                  {activeFilters.dateRange === 'today' && 'Hoy'}
+                  {activeFilters.dateRange === 'this_week' && 'Esta Semana'}
+                  {activeFilters.dateRange === 'this_month' && 'Este Mes'}
+                  {activeFilters.dateRange === 'custom' && 'Personalizado'}
+                </Text>
+              </View>
+            )}
+            
+            {activeFilters.status && (
+              <View style={styles.activeFilterChip}>
+                <Ionicons name="time" size={14} color={getIOSColor(IOS_COLORS.orange, isDark)} />
+                <Text style={styles.activeFilterText}>
+                  {activeFilters.status === 'upcoming' && 'Próximos'}
+                  {activeFilters.status === 'in_progress' && 'En Curso'}
+                  {activeFilters.status === 'completed' && 'Completados'}
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        )}
+      </View>
+
+      {/* Lista de eventos */}
       <FlatList
         data={filteredEvents}
         renderItem={renderEvent}
@@ -352,6 +457,8 @@ export default function EventsScreen() {
         ListEmptyComponent={ListEmpty}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -362,6 +469,14 @@ export default function EventsScreen() {
             tintColor={getIOSColor(IOS_COLORS.systemBlue, isDark)}
           />
         }
+      />
+
+      {/* Modal de filtros avanzados */}
+      <EventFiltersModal
+        visible={showFiltersModal}
+        onClose={() => setShowFiltersModal(false)}
+        filters={activeFilters}
+        onApply={handleApplyFilters}
       />
     </SafeAreaView>
   );
@@ -419,10 +534,36 @@ const createStyles = (isDark: boolean) => {
       marginLeft: IOS_SPACING.sm,
       marginRight: IOS_SPACING.sm,
     },
+    filterButtonInSearch: {
+      position: 'relative',
+      padding: IOS_SPACING.xs,
+      marginLeft: IOS_SPACING.xs,
+    },
+    filterBadge: {
+      position: 'absolute',
+      top: -2,
+      right: -2,
+      backgroundColor: getIOSColor(colors.red, isDark),
+      borderRadius: 8,
+      minWidth: 16,
+      height: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 4,
+    },
+    filterBadgeText: {
+      ...IOS_TYPOGRAPHY.caption2,
+      color: '#FFFFFF',
+      fontWeight: '600',
+      fontSize: 10,
+    },
+    categoriesScroll: {
+      marginBottom: IOS_SPACING.xl,
+    },
     categoriesContainer: {
       flexDirection: "row",
       gap: IOS_SPACING.sm,
-      marginBottom: IOS_SPACING.xl,
+      paddingRight: IOS_SPACING.lg,
     },
     categoryChip: {
       flexDirection: "row",
@@ -445,6 +586,50 @@ const createStyles = (isDark: boolean) => {
     },
     categoryChipTextActive: {
       color: "#FFFFFF",
+    },
+    activeFiltersScroll: {
+      marginTop: IOS_SPACING.md,
+    },
+    activeFiltersContainer: {
+      flexDirection: 'row',
+      gap: IOS_SPACING.sm,
+      paddingRight: IOS_SPACING.lg,
+    },
+    clearFiltersChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: IOS_SPACING.md,
+      paddingVertical: IOS_SPACING.sm,
+      borderRadius: IOS_RADIUS.large,
+      backgroundColor: getIOSColor(colors.red, isDark),
+      gap: IOS_SPACING.xs,
+    },
+    clearFiltersText: {
+      ...IOS_TYPOGRAPHY.subheadline,
+      color: '#FFFFFF',
+      fontWeight: '600',
+    },
+    activeFilterChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: IOS_SPACING.md,
+      paddingVertical: IOS_SPACING.sm,
+      borderRadius: IOS_RADIUS.large,
+      backgroundColor: isDark
+        ? getIOSColor(colors.fill.tertiary, isDark)
+        : getIOSColor(colors.background.secondary, isDark),
+      gap: IOS_SPACING.xs,
+      borderWidth: 1,
+      borderColor: getIOSColor(colors.separator.opaque, isDark),
+    },
+    activeFilterText: {
+      ...IOS_TYPOGRAPHY.subheadline,
+      color: getIOSColor(colors.label.primary, isDark),
+      fontWeight: '500',
+    },
+    listHeaderContainer: {
+      paddingHorizontal: IOS_SPACING.lg,
+      paddingTop: IOS_SPACING.md,
     },
     sectionTitle: {
       ...IOS_TYPOGRAPHY.title2,

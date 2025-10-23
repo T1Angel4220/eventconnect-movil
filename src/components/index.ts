@@ -8,4 +8,5 @@ export { PasswordStrength } from './PasswordStrength';
 export { CodeInput } from './CodeInput';
 export { IOSAlert, type AlertButton } from './IOSAlert';
 export { NavigationBarController } from './NavigationBarController';
+export { EventFiltersModal, type EventFiltersModalProps } from './EventFiltersModal';
 
