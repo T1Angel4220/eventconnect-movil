@@ -15,8 +15,8 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth, useTheme } from "@/src/hooks";
 import { eventService } from "@/src/services";
-import { EventWithOrganizer } from "@/src/types";
-import { Loading, ErrorMessage } from "@/src/components";
+import { EventWithOrganizer, EventFilters } from "@/src/types";
+import { Loading, ErrorMessage, EventFiltersModal } from "@/src/components";
 import {
   formatDate,
   formatTime,
@@ -42,11 +42,15 @@ export default function EventsScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<"all" | "academico" | "cultural" | "deportivo">("all");
   const [error, setError] = useState("");
+  
+  // Estados para filtros avanzados
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<EventFilters>({});
 
   // Memoizar estilos para evitar recreación en cada render
   const styles = React.useMemo(() => createStyles(isDark), [isDark]);
 
-  // Categorías para filtrar - Memoizado para evitar recreación (EN ESPAÑOL)
+  // Categorías para filtrar
   const categories = React.useMemo(() => [
     { key: "all", label: "Todos", icon: "apps" },
     { key: "academico", label: "Académico", icon: "school" },
@@ -55,19 +59,28 @@ export default function EventsScreen() {
   ] as const, []);
 
   /**
-   * Carga los eventos - Memoizado
+   * Carga los eventos con filtros avanzados
    */
   const loadEvents = React.useCallback(async () => {
     try {
       setError("");
-      const result = await eventService.getAllEvents();
+      
+      // Construir filtros combinando categoría local con filtros avanzados
+      const filters: EventFilters = {
+        ...activeFilters,
+        // Agregar filtro de categoría si no es "all"
+        eventType: selectedCategory !== 'all' ? selectedCategory : activeFilters.eventType,
+        // Usar sortBy por defecto si no hay filtros activos
+        sortBy: activeFilters.sortBy || 'date',
+        sortOrder: activeFilters.sortOrder || 'asc',
+      };
+
+      console.log('🔍 Cargando eventos con filtros:', filters);
+      const result = await eventService.getEventsWithFilters(filters);
 
       if (result.success && result.data) {
-        const sortedEvents = result.data.sort((a, b) => {
-          return new Date(a.event_date).getTime() - new Date(b.event_date).getTime();
-        });
-        
-        setEvents(sortedEvents);
+        setEvents(result.data);
+        console.log('✅ Eventos cargados:', result.data.length);
       } else {
         setError(result.message || "Error al cargar eventos");
       }
@@ -78,37 +91,69 @@ export default function EventsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [activeFilters, selectedCategory]);
 
   useEffect(() => {
     loadEvents();
   }, [loadEvents]);
 
   /**
-   * Filtra eventos usando useMemo para evitar re-renders innecesarios
+   * Filtra eventos localmente (solo búsqueda)
+   * Los filtros de categoría y avanzados se aplican en el backend
    */
   const filteredEvents = React.useMemo(() => {
     let filtered = events;
 
-    // Filtrar por categoría (comparación case-insensitive EN ESPAÑOL)
-    if (selectedCategory !== "all") {
-      filtered = filtered.filter((event) => 
-        event.event_type.toLowerCase() === selectedCategory.toLowerCase()
-      );
-    }
-
-    // Filtrar por búsqueda
+    // Filtrar por búsqueda local (solo búsqueda de texto)
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((event) => {
         const matchTitle = event.title.toLowerCase().includes(query);
         const matchDesc = event.description?.toLowerCase().includes(query) || false;
-        return matchTitle || matchDesc;
+        const matchLocation = event.location?.toLowerCase().includes(query) || false;
+        return matchTitle || matchDesc || matchLocation;
       });
     }
 
     return filtered;
-  }, [events, selectedCategory, searchQuery]);
+  }, [events, searchQuery]);
+
+  /**
+   * Contador de filtros activos
+   */
+  const activeFiltersCount = React.useMemo(() => {
+    let count = 0;
+    if (activeFilters.dateRange) count++;
+    if (activeFilters.location) count++;
+    if (activeFilters.eventType) count++;
+    if (activeFilters.status) count++;
+    if (activeFilters.sortBy && activeFilters.sortBy !== 'date') count++;
+    return count;
+  }, [activeFilters]);
+
+  /**
+   * Aplicar filtros avanzados
+   */
+  const handleApplyFilters = React.useCallback((filters: EventFilters) => {
+    console.log('🎯 Aplicando filtros en index:', filters);
+    setActiveFilters(filters);
+    
+    // Si se seleccionó un tipo de evento en filtros avanzados, limpiar categoría local
+    if (filters.eventType) {
+      setSelectedCategory('all');
+    }
+    
+    setShowFiltersModal(false);
+  }, []);
+
+  /**
+   * Limpiar todos los filtros
+   */
+  const handleClearAllFilters = React.useCallback(() => {
+    setActiveFilters({});
+    setSelectedCategory('all');
+    setSearchQuery('');
+  }, []);
 
 
   /**
@@ -122,7 +167,7 @@ export default function EventsScreen() {
     // Normalizar tipo de evento a lowercase para comparaciones
     const eventType = item.event_type.toLowerCase();
 
-    // Colores según categoría (EN ESPAÑOL)
+    // Colores según categoría
     const getCategoryColor = () => {
       if (eventType === "academico") return getIOSColor(IOS_COLORS.systemBlue, isDark);
       if (eventType === "cultural") return getIOSColor(IOS_COLORS.purple, isDark);
@@ -130,7 +175,7 @@ export default function EventsScreen() {
       return getIOSColor(IOS_COLORS.systemGray, isDark);
     };
 
-    // Icono según categoría (EN ESPAÑOL)
+    // Icono según categoría
     const getCategoryIcon = () => {
       if (eventType === "academico") return "school";
       if (eventType === "cultural") return "color-palette";
@@ -272,6 +317,7 @@ export default function EventsScreen() {
             <Text style={styles.greetingText}>Hola,</Text>
             <Text style={styles.userName}>{user?.first_name || "Usuario"} 👋</Text>
           </View>
+          {/* Toggle de tema */}
           <TouchableOpacity
             onPress={toggleTheme}
             style={styles.themeToggle}
@@ -285,7 +331,7 @@ export default function EventsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Barra de búsqueda - FUERA del FlatList */}
+        {/* Barra de búsqueda con filtros */}
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={18} color={getIOSColor(IOS_COLORS.label.tertiary, isDark)} />
           <TextInput
@@ -302,6 +348,23 @@ export default function EventsScreen() {
               <Ionicons name="close-circle" size={18} color={getIOSColor(IOS_COLORS.label.tertiary, isDark)} />
             </TouchableOpacity>
           )}
+          {/* Botón de filtros avanzados */}
+          <TouchableOpacity
+            onPress={() => setShowFiltersModal(true)}
+            style={styles.filterButtonInSearch}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name="options-outline"
+              size={20}
+              color={getIOSColor(IOS_COLORS.label.primary, isDark)}
+            />
+            {activeFiltersCount > 0 && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>{activeFiltersCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Filtros de categoría - FUERA del FlatList */}
@@ -341,6 +404,48 @@ export default function EventsScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {/* Chips de filtros activos */}
+        {activeFiltersCount > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.activeFiltersContainer}
+            style={styles.activeFiltersScroll}
+          >
+            <TouchableOpacity
+              style={styles.clearFiltersChip}
+              onPress={handleClearAllFilters}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close-circle" size={16} color="#FFFFFF" />
+              <Text style={styles.clearFiltersText}>Limpiar ({activeFiltersCount})</Text>
+            </TouchableOpacity>
+            
+            {activeFilters.dateRange && (
+              <View style={styles.activeFilterChip}>
+                <Ionicons name="calendar" size={14} color={getIOSColor(IOS_COLORS.systemBlue, isDark)} />
+                <Text style={styles.activeFilterText}>
+                  {activeFilters.dateRange === 'today' && 'Hoy'}
+                  {activeFilters.dateRange === 'this_week' && 'Esta Semana'}
+                  {activeFilters.dateRange === 'this_month' && 'Este Mes'}
+                  {activeFilters.dateRange === 'custom' && 'Personalizado'}
+                </Text>
+              </View>
+            )}
+            
+            {activeFilters.status && (
+              <View style={styles.activeFilterChip}>
+                <Ionicons name="time" size={14} color={getIOSColor(IOS_COLORS.orange, isDark)} />
+                <Text style={styles.activeFilterText}>
+                  {activeFilters.status === 'upcoming' && 'Próximos'}
+                  {activeFilters.status === 'in_progress' && 'En Curso'}
+                  {activeFilters.status === 'completed' && 'Completados'}
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        )}
       </View>
 
       {/* Lista de eventos */}
@@ -364,6 +469,14 @@ export default function EventsScreen() {
             tintColor={getIOSColor(IOS_COLORS.systemBlue, isDark)}
           />
         }
+      />
+
+      {/* Modal de filtros avanzados */}
+      <EventFiltersModal
+        visible={showFiltersModal}
+        onClose={() => setShowFiltersModal(false)}
+        filters={activeFilters}
+        onApply={handleApplyFilters}
       />
     </SafeAreaView>
   );
@@ -421,6 +534,29 @@ const createStyles = (isDark: boolean) => {
       marginLeft: IOS_SPACING.sm,
       marginRight: IOS_SPACING.sm,
     },
+    filterButtonInSearch: {
+      position: 'relative',
+      padding: IOS_SPACING.xs,
+      marginLeft: IOS_SPACING.xs,
+    },
+    filterBadge: {
+      position: 'absolute',
+      top: -2,
+      right: -2,
+      backgroundColor: getIOSColor(colors.red, isDark),
+      borderRadius: 8,
+      minWidth: 16,
+      height: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 4,
+    },
+    filterBadgeText: {
+      ...IOS_TYPOGRAPHY.caption2,
+      color: '#FFFFFF',
+      fontWeight: '600',
+      fontSize: 10,
+    },
     categoriesScroll: {
       marginBottom: IOS_SPACING.xl,
     },
@@ -450,6 +586,46 @@ const createStyles = (isDark: boolean) => {
     },
     categoryChipTextActive: {
       color: "#FFFFFF",
+    },
+    activeFiltersScroll: {
+      marginTop: IOS_SPACING.md,
+    },
+    activeFiltersContainer: {
+      flexDirection: 'row',
+      gap: IOS_SPACING.sm,
+      paddingRight: IOS_SPACING.lg,
+    },
+    clearFiltersChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: IOS_SPACING.md,
+      paddingVertical: IOS_SPACING.sm,
+      borderRadius: IOS_RADIUS.large,
+      backgroundColor: getIOSColor(colors.red, isDark),
+      gap: IOS_SPACING.xs,
+    },
+    clearFiltersText: {
+      ...IOS_TYPOGRAPHY.subheadline,
+      color: '#FFFFFF',
+      fontWeight: '600',
+    },
+    activeFilterChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: IOS_SPACING.md,
+      paddingVertical: IOS_SPACING.sm,
+      borderRadius: IOS_RADIUS.large,
+      backgroundColor: isDark
+        ? getIOSColor(colors.fill.tertiary, isDark)
+        : getIOSColor(colors.background.secondary, isDark),
+      gap: IOS_SPACING.xs,
+      borderWidth: 1,
+      borderColor: getIOSColor(colors.separator.opaque, isDark),
+    },
+    activeFilterText: {
+      ...IOS_TYPOGRAPHY.subheadline,
+      color: getIOSColor(colors.label.primary, isDark),
+      fontWeight: '500',
     },
     listHeaderContainer: {
       paddingHorizontal: IOS_SPACING.lg,

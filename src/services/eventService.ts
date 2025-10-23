@@ -1,12 +1,14 @@
 // Servicio de eventos
 
 import api, { getErrorMessage } from './api';
-import { Event, EventWithOrganizer } from '@/src/types';
+import { Event, EventWithOrganizer, EventFilters } from '@/src/types';
 
 interface EventsResponse {
   success: boolean;
   data?: EventWithOrganizer[];
   message?: string;
+  filters?: EventFilters;
+  count?: number;
 }
 
 interface EventResponse {
@@ -101,7 +103,7 @@ class EventService {
   }
 
   /**
-   * Busca eventos por filtros
+   * Busca eventos por filtros básicos (búsqueda y tipo)
    */
   async searchEvents(filters: {
     type?: string;
@@ -111,6 +113,41 @@ class EventService {
       const response = await api.get<EventsResponse>('/events', { params: filters });
       return response.data;
     } catch (error) {
+      const message = getErrorMessage(error);
+      return {
+        success: false,
+        message,
+      };
+    }
+  }
+
+  /**
+   * Obtiene eventos con filtros avanzados
+   */
+  async getEventsWithFilters(filters: EventFilters): Promise<EventsResponse> {
+    try {
+      // Construir query params desde los filtros
+      const params: any = {};
+
+      if (filters.dateRange) params.dateRange = filters.dateRange;
+      if (filters.startDate) params.startDate = filters.startDate;
+      if (filters.endDate) params.endDate = filters.endDate;
+      if (filters.location) params.location = filters.location;
+      if (filters.eventType) params.eventType = filters.eventType;
+      if (filters.status) params.status = filters.status;
+      if (filters.onlyAvailable !== undefined) params.onlyAvailable = filters.onlyAvailable;
+      if (filters.sortBy) params.sortBy = filters.sortBy;
+      if (filters.sortOrder) params.sortOrder = filters.sortOrder;
+
+      console.log('📤 Enviando filtros al backend:', params);
+
+      const response = await api.get<EventsResponse>('/events', { params });
+      
+      console.log('📥 Respuesta del backend:', response.data);
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error al obtener eventos con filtros:', error);
       const message = getErrorMessage(error);
       return {
         success: false,
