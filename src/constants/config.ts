@@ -4,8 +4,13 @@
 // En desarrollo, usa tu IP local (no localhost porque el emulador no la reconoce)
 // Para encontrar tu IP: ipconfig en Windows, ifconfig en Mac/Linux
 export const API_BASE_URL = __DEV__ 
-  ? 'http://192.168.1.10:3001/api'  // Cambia esta IP por la tuya
+  ? 'http://192.168.3.5:3001/api'  // ⚠️ IMPORTANTE: Incluir puerto :3001
   : 'https://tu-api-produccion.com/api'; // URL de producción cuando despliegues
+
+// URL base para imágenes y archivos estáticos (sin /api)
+export const IMAGE_BASE_URL = __DEV__
+  ? 'http://192.168.3.5:3001'
+  : 'https://tu-api-produccion.com';
 
 // Configuración de timeouts
 export const API_TIMEOUT = 10000; // 10 segundos

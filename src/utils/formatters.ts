@@ -1,6 +1,6 @@
 // Funciones de formato
 
-import { EVENT_TYPES, EVENT_STATUS, API_BASE_URL } from '@/src/constants/config';
+import { EVENT_TYPES, EVENT_STATUS, IMAGE_BASE_URL } from '@/src/constants/config';
 import { EventType, EventStatus } from '@/src/types';
 
 /**
@@ -175,12 +175,11 @@ export const getImageUrl = (imagePath: string | null | undefined): string => {
 };
 
 /**
- * Construye una URL completa del backend
- * Elimina el '/api' del final de API_BASE_URL y agrega la ruta
+ * Construye una URL completa del backend para archivos estáticos
  */
 const getBackendUrl = (path: string): string => {
-  // Obtener la URL base sin el '/api'
-  const baseUrl = API_BASE_URL.replace('/api', '');
+  // Usar IMAGE_BASE_URL que ya no incluye '/api'
+  const baseUrl = IMAGE_BASE_URL;
   
   // Asegurarse de que la ruta comience con /
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
