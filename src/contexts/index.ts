@@ -2,4 +2,5 @@
 
 export { AuthContext, AuthProvider } from './AuthContext';
 export { ThemeContext, ThemeProvider } from './ThemeContext';
+export { ToastProvider, useToast } from './ToastContext';
 

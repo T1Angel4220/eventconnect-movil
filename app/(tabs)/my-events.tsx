@@ -11,10 +11,10 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "@/src/hooks";
+import { useTheme, useToast } from "@/src/hooks";
 import { registrationService } from "@/src/services";
 import { RegistrationWithDetails } from "@/src/types";
-import { Loading, ErrorMessage, IOSAlert, IOSSuccessAlert } from "@/src/components";
+import { Loading, IOSAlert, IOSSuccessAlert, NoConnection } from "@/src/components";
 import {
   formatDate,
   formatTime,
@@ -31,24 +31,29 @@ import { IOS_TYPOGRAPHY, IOS_SPACING, IOS_RADIUS, IOS_COLORS, IOS_SHADOWS, getIO
 export default function MyEventsScreen() {
   const router = useRouter();
   const { isDark } = useTheme();
+  const toast = useToast();
 
   const [registrations, setRegistrations] = useState<RegistrationWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState("");
   const [showCancelAlert, setShowCancelAlert] = useState(false);
   const [selectedRegistration, setSelectedRegistration] = useState<{id: number, title: string} | null>(null);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [isCanceling, setIsCanceling] = useState(false);
+  const [hasConnectionError, setHasConnectionError] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const styles = createStyles(isDark);
 
   /**
    * Carga las inscripciones del usuario
    */
-  const loadRegistrations = async () => {
+  const loadRegistrations = async (isInitial: boolean = false) => {
     try {
-      setError("");
+      setHasConnectionError(false);
+      
+      console.log('🔍 Cargando registros - isInitial:', isInitial, 'isInitialLoad:', isInitialLoad);
       const result = await registrationService.getMyRegistrations();
 
       if (result.success && result.data) {
@@ -58,15 +63,22 @@ export default function MyEventsScreen() {
         });
         
         setRegistrations(sortedRegistrations);
+        setHasConnectionError(false);
+        setIsInitialLoad(false);
+        console.log('✅ Registros cargados:', sortedRegistrations.length);
       } else {
-        setError("Error al cargar tus eventos");
+        console.log('❌ Error en respuesta - Mostrando PANTALLA COMPLETA');
+        // SIEMPRE mostrar pantalla completa cuando hay error de conexión
+        setHasConnectionError(true);
       }
     } catch (error) {
-      console.error("Error cargando registros:", error);
-      setError("Error al conectar con el servidor");
+      console.error("Error cargando registros - Mostrando PANTALLA COMPLETA", error);
+      // SIEMPRE mostrar pantalla completa cuando no hay conexión
+      setHasConnectionError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setRetrying(false);
     }
   };
 
@@ -102,11 +114,11 @@ export default function MyEventsScreen() {
           setShowSuccessAlert(true);
         }, 300);
       } else {
-        setError(result.message || "No se pudo cancelar");
+        toast.showError(result.message || "No se pudo cancelar");
       }
     } catch (error) {
       console.error("Error cancelando inscripción:", error);
-      setError("No se pudo cancelar la inscripción");
+      toast.showError("No se pudo cancelar la inscripción");
     } finally {
       setIsCanceling(false);
       setSelectedRegistration(null);
@@ -114,7 +126,7 @@ export default function MyEventsScreen() {
   };
 
   useEffect(() => {
-    loadRegistrations();
+    loadRegistrations(true); // Primera carga
   }, []);
 
   /**
@@ -300,12 +312,23 @@ export default function MyEventsScreen() {
     </View>
   );
 
-  if (loading) {
+  if (loading && !retrying) {
     return <Loading message="Cargando tus eventos..." />;
   }
 
-  if (error && !refreshing) {
-    return <ErrorMessage message={error} onRetry={loadRegistrations} />;
+  if (hasConnectionError) {
+    return (
+      <NoConnection 
+        onRetry={() => {
+          setRetrying(true);
+          setHasConnectionError(false);
+          setLoading(true);
+          loadRegistrations(true); // Reintentar como carga inicial
+        }}
+        message="Sin conexión a internet"
+        retrying={retrying}
+      />
+    );
   }
 
   return (

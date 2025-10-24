@@ -13,10 +13,10 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useAuth, useTheme } from "@/src/hooks";
+import { useAuth, useTheme, useToast } from "@/src/hooks";
 import { eventService } from "@/src/services";
 import { EventWithOrganizer, EventFilters } from "@/src/types";
-import { Loading, ErrorMessage, EventFiltersModal } from "@/src/components";
+import { Loading, EventFiltersModal, NoConnection } from "@/src/components";
 import {
   formatDate,
   formatTime,
@@ -35,13 +35,16 @@ export default function EventsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { isDark, toggleTheme, theme } = useTheme();
+  const toast = useToast();
 
   const [events, setEvents] = useState<EventWithOrganizer[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<"all" | "academico" | "cultural" | "deportivo">("all");
-  const [error, setError] = useState("");
+  const [hasConnectionError, setHasConnectionError] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   
   // Estados para filtros avanzados
   const [showFiltersModal, setShowFiltersModal] = useState(false);
@@ -61,9 +64,9 @@ export default function EventsScreen() {
   /**
    * Carga los eventos con filtros avanzados
    */
-  const loadEvents = React.useCallback(async () => {
+  const loadEvents = React.useCallback(async (isInitial: boolean = false) => {
     try {
-      setError("");
+      setHasConnectionError(false);
       
       // Construir filtros combinando categoría local con filtros avanzados
       const filters: EventFilters = {
@@ -75,26 +78,32 @@ export default function EventsScreen() {
         sortOrder: activeFilters.sortOrder || 'asc',
       };
 
-      console.log('🔍 Cargando eventos con filtros:', filters);
+      console.log('🔍 Cargando eventos - isInitial:', isInitial, 'isInitialLoad:', isInitialLoad);
       const result = await eventService.getEventsWithFilters(filters);
 
       if (result.success && result.data) {
         setEvents(result.data);
+        setHasConnectionError(false);
+        setIsInitialLoad(false);
         console.log('✅ Eventos cargados:', result.data.length);
       } else {
-        setError(result.message || "Error al cargar eventos");
+        console.log('❌ Error en respuesta - Mostrando PANTALLA COMPLETA');
+        // SIEMPRE mostrar pantalla completa cuando hay error de conexión
+        setHasConnectionError(true);
       }
     } catch (error) {
-      console.error("Error cargando eventos:", error);
-      setError("Error al conectar con el servidor");
+      console.error("Error cargando eventos - Mostrando PANTALLA COMPLETA", error);
+      // SIEMPRE mostrar pantalla completa cuando no hay conexión
+      setHasConnectionError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setRetrying(false);
     }
   }, [activeFilters, selectedCategory]);
 
   useEffect(() => {
-    loadEvents();
+    loadEvents(true); // Primera carga
   }, [loadEvents]);
 
   /**
@@ -299,12 +308,24 @@ export default function EventsScreen() {
     </View>
   );
 
-  if (loading) {
+  // Manejo de estados de carga y error
+  if (loading && !retrying) {
     return <Loading message="Cargando eventos..." />;
   }
 
-  if (error && !refreshing) {
-    return <ErrorMessage message={error} onRetry={loadEvents} />;
+  if (hasConnectionError) {
+    return (
+      <NoConnection 
+        onRetry={() => {
+          setRetrying(true);
+          setHasConnectionError(false);
+          setLoading(true);
+          loadEvents(true); // Reintentar como carga inicial
+        }}
+        message="Sin conexión a internet"
+        retrying={retrying}
+      />
+    );
   }
 
   return (
