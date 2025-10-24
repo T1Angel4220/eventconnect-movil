@@ -10,4 +10,7 @@ export { IOSAlert, type AlertButton } from './IOSAlert';
 export { IOSSuccessAlert } from './IOSSuccessAlert';
 export { NavigationBarController } from './NavigationBarController';
 export { EventFiltersModal, type EventFiltersModalProps } from './EventFiltersModal';
+export { default as ErrorBoundary } from './ErrorBoundary';
+export { default as Toast, type ToastType } from './Toast';
+export { default as NoConnection } from './NoConnection';
 
