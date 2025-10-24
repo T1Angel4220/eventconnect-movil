@@ -1,5 +1,7 @@
 // Tipos relacionados con inscripciones
 
+import { EventType } from './event.types';
+
 export type RegistrationStatus = 'registered' | 'canceled';
 
 export interface Registration {
@@ -17,8 +19,10 @@ export interface RegistrationWithDetails extends Registration {
   event_title: string;
   event_date: string;
   event_location: string | null;
-  event_type: string;
+  event_type: EventType;
   event_capacity: number;
+  event_image: string | null;
+  duration: number | null;
   organizer_id: number;
   organizer_name?: string;
 }

@@ -23,6 +23,15 @@ api.interceptors.request.use(
     try {
       const token = await getToken();
       
+      // Log detallado del token
+      if (__DEV__) {
+        if (token) {
+          console.log(`🔑 Token encontrado:`, token.substring(0, 20) + '...');
+        } else {
+          console.warn(`⚠️ No hay token disponible para ${config.url}`);
+        }
+      }
+      
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -30,16 +39,17 @@ api.interceptors.request.use(
       // Log de peticiones en desarrollo
       if (__DEV__) {
         console.log(`📡 ${config.method?.toUpperCase()} ${config.url}`, config.data);
+        console.log(`🔐 Authorization header:`, config.headers.Authorization ? 'Presente' : 'Ausente');
       }
       
       return config;
     } catch (error) {
-      console.error('Error en interceptor de petición:', error);
+      console.error('💥 Error en interceptor de petición:', error);
       return config;
     }
   },
   (error) => {
-    console.error('Error en interceptor de petición:', error);
+    console.error('💥 Error en interceptor de petición:', error);
     return Promise.reject(error);
   }
 );

@@ -13,7 +13,7 @@ import {
   ResetPasswordData,
   ResetPasswordResponse,
 } from '@/src/types';
-import { saveToken, saveUser, clearAuthData } from '@/src/utils/storage';
+import { saveToken, saveUser, clearAuthData, getToken } from '@/src/utils/storage';
 
 /**
  * Servicio de autenticación
@@ -24,17 +24,31 @@ class AuthService {
    */
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
     try {
+      console.log('🔐 Iniciando login...');
       const response = await api.post<LoginResponse>('/auth/login', credentials);
       
       if (response.data.success && response.data.token && response.data.user) {
+        console.log('✅ Login exitoso, guardando token...');
+        console.log('🔑 Token recibido:', response.data.token.substring(0, 20) + '...');
+        
         // Guardar token y usuario en AsyncStorage
         await saveToken(response.data.token);
         await saveUser(response.data.user);
+        
+        // Verificar que se guardó correctamente
+        const savedToken = await getToken();
+        if (savedToken) {
+          console.log('✅ Token guardado correctamente en AsyncStorage');
+          console.log('🔑 Token verificado:', savedToken.substring(0, 20) + '...');
+        } else {
+          console.error('❌ ERROR: Token NO se guardó en AsyncStorage');
+        }
       }
       
       return response.data;
     } catch (error) {
       const message = getErrorMessage(error) || 'Error al iniciar sesión';
+      console.error('❌ Error en login:', message);
       return {
         success: false,
         message: String(message), // Asegurar que siempre sea string
