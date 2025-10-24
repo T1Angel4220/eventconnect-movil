@@ -87,6 +87,31 @@ class RegistrationService {
       };
     }
   }
+
+  /**
+   * Verifica si el usuario está inscrito en un evento
+   */
+  async checkUserRegistration(eventId: number): Promise<{
+    success: boolean;
+    data?: {
+      isRegistered: boolean;
+      status?: 'registered' | 'canceled';
+      registrationId?: number;
+      registeredAt?: Date;
+    };
+    message?: string;
+  }> {
+    try {
+      const response = await api.get(`/registrations/check/${eventId}`);
+      return response.data;
+    } catch (error) {
+      const message = getErrorMessage(error);
+      return {
+        success: false,
+        message,
+      };
+    }
+  }
 }
 
 // Exportar instancia única del servicio

@@ -15,7 +15,7 @@ import { IOS_COLORS, IOS_SPACING, IOS_RADIUS, IOS_SHADOWS, getIOSColor } from "@
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: "primary" | "secondary" | "outline" | "danger" | "text";
+  variant?: "primary" | "secondary" | "outline" | "danger" | "destructive" | "text";
   size?: "small" | "medium" | "large";
   disabled?: boolean;
   loading?: boolean;
@@ -98,6 +98,7 @@ const createStyles = (
       break;
     
     case "danger":
+    case "destructive":
       buttonStyle = {
         backgroundColor: getIOSColor(colors.red, isDark),
         ...IOS_SHADOWS.small,

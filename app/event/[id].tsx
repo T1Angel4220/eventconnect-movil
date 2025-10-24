@@ -6,14 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Alert,
   SafeAreaView,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { eventService, registrationService } from "@/src/services";
 import { EventWithOrganizer } from "@/src/types";
-import { Loading, Button } from "@/src/components";
+import { Loading, Button, IOSAlert, AlertButton } from "@/src/components";
 import {
   formatDate,
   formatTime,
@@ -39,13 +38,37 @@ export default function EventDetailsScreen() {
   const [event, setEvent] = useState<EventWithOrganizer | null>(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
+  
+  // Estado de inscripción del usuario
+  const [registrationStatus, setRegistrationStatus] = useState<{
+    isRegistered: boolean;
+    registrationId?: number;
+  }>({
+    isRegistered: false,
+  });
+  const [checkingRegistration, setCheckingRegistration] = useState(true);
+  
+  // Estado para alertas iOS
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons: AlertButton[];
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    buttons: [],
+  });
+
 
   /**
-   * Carga los detalles del evento
+   * Carga los detalles del evento y el estado de inscripción
    */
   useEffect(() => {
     if (eventId) {
       loadEventDetails();
+      checkRegistrationStatus();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
@@ -57,61 +80,152 @@ export default function EventDetailsScreen() {
       if (result.success && result.data) {
         setEvent(result.data);
       } else {
-        Alert.alert("Error", result.message || "No se pudo cargar el evento");
-        router.back();
+        setAlertConfig({
+          visible: true,
+          title: "Error",
+          message: result.message || "No se pudo cargar el evento",
+          buttons: [
+            {
+              text: "Volver",
+              style: "cancel",
+              onPress: () => router.back(),
+            },
+          ],
+        });
       }
     } catch (error) {
       console.error("Error cargando evento:", error);
-      Alert.alert("Error", "Error al conectar con el servidor");
-      router.back();
+      setAlertConfig({
+        visible: true,
+        title: "Error de Conexión",
+        message: "No se pudo conectar con el servidor. Verifica tu conexión.",
+        buttons: [
+          {
+            text: "Volver",
+            style: "cancel",
+            onPress: () => router.back(),
+          },
+        ],
+      });
     } finally {
       setLoading(false);
     }
   };
 
   /**
+   * Verifica si el usuario ya está inscrito en el evento
+   */
+  const checkRegistrationStatus = async () => {
+    try {
+      setCheckingRegistration(true);
+      const result = await registrationService.checkUserRegistration(eventId);
+
+      if (result.success && result.data) {
+        setRegistrationStatus({
+          isRegistered: result.data.isRegistered,
+          registrationId: result.data.registrationId,
+        });
+      }
+    } catch (error) {
+      console.error("Error verificando inscripción:", error);
+    } finally {
+      setCheckingRegistration(false);
+    }
+  };
+
+  /**
    * Maneja la inscripción al evento
    */
-  const handleRegister = async () => {
+  const handleRegister = () => {
     if (!event) return;
 
-    Alert.alert(
-      "Confirmar Inscripción",
-      `¿Deseas inscribirte a "${event.title}"?`,
-      [
-        { text: "Cancelar", style: "cancel" },
+    setAlertConfig({
+      visible: true,
+      title: "Confirmar Inscripción",
+      message: `¿Estás seguro de que deseas inscribirte a "${event.title}"?`,
+      buttons: [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
         {
           text: "Inscribirme",
-          onPress: async () => {
-            try {
-              setRegistering(true);
-              const result = await registrationService.createRegistration({ event_id: event.event_id });
-
-              if (result.success) {
-                Alert.alert("¡Éxito!", "Te has inscrito exitosamente al evento", [
-                  {
-                    text: "Ver Mis Eventos",
-                    onPress: () => router.push("/(tabs)/my-events"),
-                  },
-                  {
-                    text: "Aceptar",
-                    onPress: () => router.back(),
-                  },
-                ]);
-              } else {
-                Alert.alert("Error", result.message);
-              }
-            } catch (error) {
-              Alert.alert("Error", "No se pudo completar la inscripción");
-              console.error("Error en inscripción:", error);
-            } finally {
-              setRegistering(false);
-            }
-          },
+          style: "default",
+          onPress: () => confirmRegistration(),
         },
-      ]
-    );
+      ],
+    });
   };
+
+  /**
+   * Confirma y ejecuta la inscripción
+   */
+  const confirmRegistration = async () => {
+    if (!event) return;
+
+    try {
+      setRegistering(true);
+      console.log("🎫 Inscribiendo al evento:", event.event_id);
+      
+      const result = await registrationService.createRegistration({ event_id: event.event_id });
+
+      if (result.success) {
+        console.log("✅ Inscripción exitosa:", result.data);
+        
+        // Actualizar el contador de inscritos localmente
+        setEvent(prev => prev ? {
+          ...prev,
+          registered_count: (prev.registered_count || 0) + 1
+        } : null);
+
+        // Actualizar estado de inscripción
+        await checkRegistrationStatus();
+
+        setAlertConfig({
+          visible: true,
+          title: "¡Inscripción Exitosa!",
+          message: "Te has inscrito correctamente al evento. Podrás ver tus eventos en la pestaña 'Mis Eventos'.",
+          buttons: [
+            {
+              text: "Ver Mis Eventos",
+              style: "default",
+              onPress: () => {
+                setAlertConfig({ ...alertConfig, visible: false });
+                router.push("/(tabs)/my-events");
+              },
+            },
+            {
+              text: "Cerrar",
+              style: "cancel",
+              onPress: () => {
+                setAlertConfig({ ...alertConfig, visible: false });
+                router.back();
+              },
+            },
+          ],
+        });
+      } else {
+        console.log("❌ Error en inscripción:", result.message);
+        setAlertConfig({
+          visible: true,
+          title: "Error al Inscribirse",
+          message: result.message || "No se pudo completar la inscripción",
+          buttons: [{ text: "OK", style: "cancel" }],
+        });
+      }
+    } catch (error) {
+      console.error("💥 Error inesperado en inscripción:", error);
+      setAlertConfig({
+        visible: true,
+        title: "Error",
+        message: "Ocurrió un error inesperado. Por favor, intenta nuevamente.",
+        buttons: [{ text: "OK", style: "cancel" }],
+      });
+    } finally {
+      setRegistering(false);
+    }
+  };
+
 
   if (loading) {
     return <Loading message="Cargando detalles..." />;
@@ -127,9 +241,9 @@ export default function EventDetailsScreen() {
 
   // Colores según categoría
   const categoryColors = {
-    academic: getIOSColor(IOS_COLORS.systemBlue, isDark),
+    academico: getIOSColor(IOS_COLORS.systemBlue, isDark),
     cultural: getIOSColor(IOS_COLORS.purple, isDark),
-    sports: getIOSColor(IOS_COLORS.green, isDark),
+    deportivo: getIOSColor(IOS_COLORS.green, isDark),
   };
 
   const styles = createStyles(isDark);
@@ -173,7 +287,7 @@ export default function EventDetailsScreen() {
             <View style={[styles.categoryBadge, { backgroundColor: categoryColors[event.event_type] }]}>
               <Ionicons
                 name={
-                  event.event_type === "academic"
+                  event.event_type === "academico"
                     ? "school"
                     : event.event_type === "cultural"
                     ? "color-palette"
@@ -190,6 +304,18 @@ export default function EventDetailsScreen() {
           <View style={styles.content}>
             {/* Título */}
             <Text style={styles.title}>{event.title}</Text>
+
+            {/* Badge de "Ya inscrito" */}
+            {registrationStatus.isRegistered && !checkingRegistration && (
+              <View style={styles.registeredBadge}>
+                <Ionicons 
+                  name="checkmark-circle" 
+                  size={20} 
+                  color={getIOSColor(IOS_COLORS.green, isDark)} 
+                />
+                <Text style={styles.registeredText}>Ya estás inscrito</Text>
+              </View>
+            )}
 
             {/* Tiempo hasta el evento */}
             <View style={styles.timeContainer}>
@@ -348,7 +474,17 @@ export default function EventDetailsScreen() {
 
         {/* Botón de inscripción flotante */}
         <View style={styles.footer}>
-          {isFull ? (
+          {registrationStatus.isRegistered ? (
+            // Usuario YA está inscrito - Botón deshabilitado (cancelar desde "Mis Eventos")
+            <Button
+              title="Ya estás inscrito"
+              onPress={() => {}}
+              disabled={true}
+              fullWidth
+              variant="secondary"
+            />
+          ) : isFull ? (
+            // Evento LLENO - No se puede inscribir
             <View style={styles.fullContainer}>
               <Ionicons 
                 name="close-circle" 
@@ -358,6 +494,7 @@ export default function EventDetailsScreen() {
               <Text style={styles.fullText}>Evento Lleno</Text>
             </View>
           ) : (
+            // Puede inscribirse - Botón normal
             <Button
               title={registering ? "Inscribiendo..." : "Inscribirse al Evento"}
               onPress={handleRegister}
@@ -366,6 +503,15 @@ export default function EventDetailsScreen() {
             />
           )}
         </View>
+
+        {/* Alerta iOS */}
+        <IOSAlert
+          visible={alertConfig.visible}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          buttons={alertConfig.buttons}
+          onDismiss={() => setAlertConfig({ ...alertConfig, visible: false })}
+        />
       </View>
     </SafeAreaView>
   );
@@ -445,6 +591,24 @@ const createStyles = (isDark: boolean) => {
       ...IOS_TYPOGRAPHY.largeTitle,
       color: getIOSColor(colors.label.primary, isDark),
       marginBottom: IOS_SPACING.md,
+    },
+    registeredBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      alignSelf: "flex-start",
+      backgroundColor: isDark
+        ? 'rgba(48, 209, 88, 0.15)'
+        : 'rgba(52, 199, 89, 0.1)',
+      paddingHorizontal: IOS_SPACING.md,
+      paddingVertical: IOS_SPACING.sm,
+      borderRadius: IOS_RADIUS.medium,
+      marginBottom: IOS_SPACING.md,
+      gap: IOS_SPACING.xs,
+    },
+    registeredText: {
+      ...IOS_TYPOGRAPHY.subheadline,
+      color: getIOSColor(colors.green, isDark),
+      fontWeight: "600",
     },
     timeContainer: {
       flexDirection: "row",

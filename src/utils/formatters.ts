@@ -107,6 +107,11 @@ export const getEventTypeName = (type: EventType): string => {
 };
 
 /**
+ * Formatea el tipo de evento (alias de getEventTypeName)
+ */
+export const formatEventType = getEventTypeName;
+
+/**
  * Obtiene el nombre legible del estado del evento
  */
 export const getEventStatusName = (status: EventStatus): string => {
