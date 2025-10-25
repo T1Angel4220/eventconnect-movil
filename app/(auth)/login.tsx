@@ -131,7 +131,9 @@ export default function LoginScreen() {
               resizeMode="contain"
             />
             <Text style={styles.brandTitle}>Event Connect</Text>
-<Text style={styles.brandSubtitle}>Gestiona tu participación en eventos</Text>
+            <Text style={styles.brandSubtitle}>
+              Gestiona tu participación en eventos
+            </Text>
           </View>
 
           {/* Toggle tema - ciclo entre system/light/dark */}
@@ -143,11 +145,11 @@ export default function LoginScreen() {
           >
             <Ionicons
               name={
-                theme === 'system' 
-                  ? 'phone-portrait-outline' 
-                  : theme === 'dark' 
-                  ? 'moon' 
-                  : 'sunny'
+                theme === "system"
+                  ? "phone-portrait-outline"
+                  : theme === "dark"
+                    ? "moon"
+                    : "sunny"
               }
               size={22}
               color={getIOSColor(IOS_COLORS.systemBlue, isDark)}
@@ -218,7 +220,9 @@ export default function LoginScreen() {
 
             {/* Register Link con salto de línea */}
             <View style={styles.registerSection}>
-              <Text style={styles.registerQuestion}>¿No tienes una cuenta?</Text>
+              <Text style={styles.registerQuestion}>
+                ¿No tienes una cuenta?
+              </Text>
               <TouchableOpacity
                 onPress={() => router.push("/(auth)/register")}
                 activeOpacity={0.6}
@@ -267,7 +271,7 @@ const createStyles = (isDark: boolean) => {
 
     // Brand Section
     brandContainer: {
-      alignItems: 'center',
+      alignItems: "center",
       marginBottom: 32,
     },
     logo: {
@@ -277,29 +281,29 @@ const createStyles = (isDark: boolean) => {
     },
     brandTitle: {
       fontSize: 28,
-      fontWeight: '700',
+      fontWeight: "700",
       color: getIOSColor(colors.label.primary, isDark),
       letterSpacing: 0.36,
-      textAlign: 'center',
+      textAlign: "center",
     },
     brandSubtitle: {
       fontSize: 15,
-      fontWeight: '400',
+      fontWeight: "400",
       color: getIOSColor(colors.label.secondary, isDark),
       letterSpacing: -0.24,
-      textAlign: 'center',
+      textAlign: "center",
       marginTop: 4,
     },
 
     // Theme Toggle
     themeToggle: {
-      position: 'absolute',
+      position: "absolute",
       top: 25,
       right: 20,
       padding: 8,
       borderRadius: 20,
     },
-    
+
     // Form Section
     formSection: {
       gap: 0,
@@ -308,21 +312,21 @@ const createStyles = (isDark: boolean) => {
       marginBottom: 20,
     },
     forgotContainer: {
-      alignItems: 'flex-end',
+      alignItems: "flex-end",
       marginBottom: 24,
       marginTop: 4,
     },
     forgotText: {
       fontSize: 15,
-      fontWeight: '400',
+      fontWeight: "400",
       color: getIOSColor(colors.systemBlue, isDark),
       letterSpacing: -0.24,
     },
 
     // Divider
     divider: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       marginVertical: 24,
       gap: 12,
     },
@@ -330,34 +334,34 @@ const createStyles = (isDark: boolean) => {
       flex: 1,
       height: 1,
       backgroundColor: isDark
-        ? 'rgba(84, 84, 88, 0.65)'
-        : 'rgba(60, 60, 67, 0.29)',
+        ? "rgba(84, 84, 88, 0.65)"
+        : "rgba(60, 60, 67, 0.29)",
     },
     dividerText: {
       fontSize: 15,
-      fontWeight: '400',
+      fontWeight: "400",
       color: getIOSColor(colors.label.secondary, isDark),
       letterSpacing: -0.24,
     },
 
     // Register Section con salto de línea
     registerSection: {
-      alignItems: 'center',
+      alignItems: "center",
       gap: 8,
     },
     registerQuestion: {
       fontSize: 15,
-      fontWeight: '400',
+      fontWeight: "400",
       color: getIOSColor(colors.label.secondary, isDark),
       letterSpacing: -0.24,
-      textAlign: 'center',
+      textAlign: "center",
     },
     registerLink: {
       fontSize: 15,
-      fontWeight: '600',
+      fontWeight: "600",
       color: getIOSColor(colors.systemBlue, isDark),
       letterSpacing: -0.24,
-      textAlign: 'center',
+      textAlign: "center",
     },
 
     bottomSpacer: {

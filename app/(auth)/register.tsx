@@ -10,12 +10,23 @@ import {
   SafeAreaView,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Button, Input, PasswordStrength, IOSAlert, AlertButton } from "@/src/components";
+import {
+  Button,
+  Input,
+  PasswordStrength,
+  IOSAlert,
+  AlertButton,
+} from "@/src/components";
 import { validateEmail, validatePassword } from "@/src/utils";
 import { authService } from "@/src/services";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/hooks";
-import { IOS_SPACING, IOS_COLORS, getIOSColor, IOS_RADIUS } from "@/src/constants/iosStyles";
+import {
+  IOS_SPACING,
+  IOS_COLORS,
+  getIOSColor,
+  IOS_RADIUS,
+} from "@/src/constants/iosStyles";
 
 /**
  * Pantalla de Registro - Diseño iOS Nativo con Validación en Tiempo Real
@@ -100,7 +111,10 @@ export default function RegisterScreen() {
   useEffect(() => {
     if (touched.confirmPassword && formData.confirmPassword) {
       if (formData.password !== formData.confirmPassword) {
-        setErrors((prev) => ({ ...prev, confirmPassword: "Las contraseñas no coinciden" }));
+        setErrors((prev) => ({
+          ...prev,
+          confirmPassword: "Las contraseñas no coinciden",
+        }));
       } else {
         setErrors((prev) => ({ ...prev, confirmPassword: "" }));
       }
@@ -134,19 +148,19 @@ export default function RegisterScreen() {
    */
   const isPasswordValid = (pwd: string): boolean => {
     if (!pwd) return false;
-    
+
     const hasMinLength = pwd.length >= 8;
     const hasLowerCase = /[a-z]/.test(pwd);
     const hasUpperCase = /[A-Z]/.test(pwd);
     const hasNumber = /\d/.test(pwd);
-    
+
     return hasMinLength && hasLowerCase && hasUpperCase && hasNumber;
   };
 
   /**
    * Verifica si el formulario es válido
    */
-  const isFormValid = 
+  const isFormValid =
     formData.firstName.trim() !== "" &&
     formData.lastName.trim() !== "" &&
     validateEmail(formData.email).isValid &&
@@ -160,7 +174,7 @@ export default function RegisterScreen() {
    */
   const updateField = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    
+
     // Marcar como tocado
     if (!touched[field]) {
       setTouched((prev) => ({ ...prev, [field]: true }));
@@ -206,12 +220,18 @@ export default function RegisterScreen() {
 
     const passwordValidation = validatePassword(formData.password);
     if (!passwordValidation.isValid) {
-      setErrors((prev) => ({ ...prev, password: passwordValidation.error || "" }));
+      setErrors((prev) => ({
+        ...prev,
+        password: passwordValidation.error || "",
+      }));
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setErrors((prev) => ({ ...prev, confirmPassword: "Las contraseñas no coinciden" }));
+      setErrors((prev) => ({
+        ...prev,
+        confirmPassword: "Las contraseñas no coinciden",
+      }));
       return;
     }
 
@@ -278,10 +298,10 @@ export default function RegisterScreen() {
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             activeOpacity={0.6}
           >
-            <Ionicons 
-              name="chevron-back" 
-              size={28} 
-              color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+            <Ionicons
+              name="chevron-back"
+              size={28}
+              color={getIOSColor(IOS_COLORS.systemBlue, isDark)}
             />
             <Text style={styles.backText}>Atrás</Text>
           </TouchableOpacity>
@@ -292,10 +312,10 @@ export default function RegisterScreen() {
           {/* Ícono */}
           <View style={styles.iconSection}>
             <View style={styles.iconCircle}>
-              <Ionicons 
-                name="person-add" 
-                size={44} 
-                color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+              <Ionicons
+                name="person-add"
+                size={44}
+                color={getIOSColor(IOS_COLORS.systemBlue, isDark)}
               />
             </View>
           </View>
@@ -324,7 +344,7 @@ export default function RegisterScreen() {
                   autoCapitalize="words"
                 />
               </View>
-              
+
               <View style={styles.halfWidth}>
                 <Input
                   label="Apellido"
@@ -386,14 +406,15 @@ export default function RegisterScreen() {
 
             {/* Info card */}
             <View style={styles.infoCard}>
-              <Ionicons 
-                name="information-circle" 
-                size={20} 
-                color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+              <Ionicons
+                name="information-circle"
+                size={20}
+                color={getIOSColor(IOS_COLORS.systemBlue, isDark)}
                 style={styles.infoIcon}
               />
               <Text style={styles.infoText}>
-                Al registrarte, aceptas los términos y condiciones de Event Connect.
+                Al registrarte, aceptas los términos y condiciones de Event
+                Connect.
               </Text>
             </View>
 
@@ -410,7 +431,7 @@ export default function RegisterScreen() {
             {/* Login link con salto de línea */}
             <View style={styles.loginSection}>
               <Text style={styles.loginQuestion}>¿Ya tienes cuenta?</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => router.push("/(auth)/login")}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 activeOpacity={0.6}
@@ -439,7 +460,7 @@ export default function RegisterScreen() {
 
 const createStyles = (isDark: boolean) => {
   const colors = isDark ? IOS_COLORS : IOS_COLORS;
-  
+
   return StyleSheet.create({
     safeArea: {
       flex: 1,
@@ -452,18 +473,18 @@ const createStyles = (isDark: boolean) => {
       flexGrow: 1,
       paddingHorizontal: 20,
     },
-    
+
     // Back Button
     backButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       paddingVertical: 8,
       marginTop: 25,
       marginLeft: -8,
     },
     backText: {
       fontSize: 17,
-      fontWeight: '400',
+      fontWeight: "400",
       color: getIOSColor(colors.systemBlue, isDark),
       marginLeft: 4,
       letterSpacing: -0.41,
@@ -471,64 +492,64 @@ const createStyles = (isDark: boolean) => {
     topSpacer: {
       height: 16,
     },
-    
+
     // Icon Section
     iconSection: {
-      alignItems: 'center',
+      alignItems: "center",
       marginBottom: 24,
     },
     iconCircle: {
       width: 88,
       height: 88,
       borderRadius: 44,
-      backgroundColor: isDark 
-        ? 'rgba(10, 132, 255, 0.15)' 
-        : 'rgba(0, 122, 255, 0.1)',
-      alignItems: 'center',
-      justifyContent: 'center',
+      backgroundColor: isDark
+        ? "rgba(10, 132, 255, 0.15)"
+        : "rgba(0, 122, 255, 0.1)",
+      alignItems: "center",
+      justifyContent: "center",
     },
-    
+
     // Header Section
     headerSection: {
-      alignItems: 'center',
+      alignItems: "center",
       marginBottom: 32,
       paddingHorizontal: 8,
     },
     title: {
       fontSize: 28,
-      fontWeight: '700',
+      fontWeight: "700",
       color: getIOSColor(colors.label.primary, isDark),
       marginBottom: 12,
-      textAlign: 'center',
+      textAlign: "center",
       letterSpacing: 0.36,
     },
     subtitle: {
       fontSize: 15,
-      fontWeight: '400',
+      fontWeight: "400",
       color: getIOSColor(colors.label.secondary, isDark),
-      textAlign: 'center',
+      textAlign: "center",
       lineHeight: 22,
       letterSpacing: -0.24,
     },
-    
+
     // Form
     formContainer: {
       gap: IOS_SPACING.md,
     },
     rowContainer: {
-      flexDirection: 'row',
+      flexDirection: "row",
       gap: IOS_SPACING.sm,
     },
     halfWidth: {
       flex: 1,
     },
-    
+
     // Info Card
     infoCard: {
-      flexDirection: 'row',
+      flexDirection: "row",
       backgroundColor: isDark
-        ? 'rgba(142, 142, 147, 0.12)'
-        : 'rgba(120, 120, 128, 0.08)',
+        ? "rgba(142, 142, 147, 0.12)"
+        : "rgba(120, 120, 128, 0.08)",
       borderRadius: IOS_RADIUS.medium,
       padding: 16,
       marginTop: IOS_SPACING.xs,
@@ -540,37 +561,37 @@ const createStyles = (isDark: boolean) => {
     infoText: {
       flex: 1,
       fontSize: 13,
-      fontWeight: '400',
+      fontWeight: "400",
       color: getIOSColor(colors.label.secondary, isDark),
       lineHeight: 18,
       letterSpacing: -0.08,
     },
-    
+
     registerButton: {
       marginTop: IOS_SPACING.md,
     },
-    
+
     // Login Section con salto de línea
     loginSection: {
-      alignItems: 'center',
+      alignItems: "center",
       gap: 8,
       marginTop: IOS_SPACING.md,
     },
     loginQuestion: {
       fontSize: 15,
-      fontWeight: '400',
+      fontWeight: "400",
       color: getIOSColor(colors.label.secondary, isDark),
       letterSpacing: -0.24,
-      textAlign: 'center',
+      textAlign: "center",
     },
     loginLink: {
       fontSize: 15,
-      fontWeight: '600',
+      fontWeight: "600",
       color: getIOSColor(colors.systemBlue, isDark),
       letterSpacing: -0.24,
-      textAlign: 'center',
+      textAlign: "center",
     },
-    
+
     bottomSpacer: {
       height: 32,
     },

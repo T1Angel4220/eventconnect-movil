@@ -1,6 +1,6 @@
 // Servicio de autenticación
 
-import api, { getErrorMessage } from './api';
+import api, { getErrorMessage } from "./api";
 import {
   LoginCredentials,
   LoginResponse,
@@ -12,8 +12,13 @@ import {
   VerifyCodeResponse,
   ResetPasswordData,
   ResetPasswordResponse,
-} from '@/src/types';
-import { saveToken, saveUser, clearAuthData, getToken } from '@/src/utils/storage';
+} from "@/src/types";
+import {
+  saveToken,
+  saveUser,
+  clearAuthData,
+  getToken,
+} from "@/src/utils/storage";
 
 /**
  * Servicio de autenticación
@@ -24,31 +29,40 @@ class AuthService {
    */
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
     try {
-      console.log('🔐 Iniciando login...');
-      const response = await api.post<LoginResponse>('/auth/login', credentials);
-      
+      console.log("🔐 Iniciando login...");
+      const response = await api.post<LoginResponse>(
+        "/auth/login",
+        credentials,
+      );
+
       if (response.data.success && response.data.token && response.data.user) {
-        console.log('✅ Login exitoso, guardando token...');
-        console.log('🔑 Token recibido:', response.data.token.substring(0, 20) + '...');
-        
+        console.log("✅ Login exitoso, guardando token...");
+        console.log(
+          "🔑 Token recibido:",
+          response.data.token.substring(0, 20) + "...",
+        );
+
         // Guardar token y usuario en AsyncStorage
         await saveToken(response.data.token);
         await saveUser(response.data.user);
-        
+
         // Verificar que se guardó correctamente
         const savedToken = await getToken();
         if (savedToken) {
-          console.log('✅ Token guardado correctamente en AsyncStorage');
-          console.log('🔑 Token verificado:', savedToken.substring(0, 20) + '...');
+          console.log("✅ Token guardado correctamente en AsyncStorage");
+          console.log(
+            "🔑 Token verificado:",
+            savedToken.substring(0, 20) + "...",
+          );
         } else {
-          console.error('❌ ERROR: Token NO se guardó en AsyncStorage');
+          console.error("❌ ERROR: Token NO se guardó en AsyncStorage");
         }
       }
-      
+
       return response.data;
     } catch (error) {
-      const message = getErrorMessage(error) || 'Error al iniciar sesión';
-      console.error('❌ Error en login:', message);
+      const message = getErrorMessage(error) || "Error al iniciar sesión";
+      console.error("❌ Error en login:", message);
       return {
         success: false,
         message: String(message), // Asegurar que siempre sea string
@@ -63,21 +77,24 @@ class AuthService {
     try {
       // Transformar de snake_case a camelCase para el backend
       const registerData = {
-        firstName: data.first_name,  // Cambiar a camelCase
-        lastName: data.last_name,    // Cambiar a camelCase
+        firstName: data.first_name, // Cambiar a camelCase
+        lastName: data.last_name, // Cambiar a camelCase
         email: data.email,
         password: data.password,
-        role: 'participant' as const,
+        role: "participant" as const,
       };
 
-      console.log('📤 Enviando datos de registro:', registerData);
+      console.log("📤 Enviando datos de registro:", registerData);
 
-      const response = await api.post<RegisterResponse>('/auth/register', registerData);
-      
+      const response = await api.post<RegisterResponse>(
+        "/auth/register",
+        registerData,
+      );
+
       return response.data;
     } catch (error) {
       const message = getErrorMessage(error);
-      console.error('❌ Error en registro:', message);
+      console.error("❌ Error en registro:", message);
       return {
         success: false,
         message,
@@ -88,14 +105,18 @@ class AuthService {
   /**
    * Solicita recuperación de contraseña (envía código por email)
    */
-  async forgotPassword(data: ForgotPasswordData): Promise<ForgotPasswordResponse & { userId?: number }> {
+  async forgotPassword(
+    data: ForgotPasswordData,
+  ): Promise<ForgotPasswordResponse & { userId?: number }> {
     try {
-      const response = await api.post('/auth/forgot-password', { email: data.email });
-      
+      const response = await api.post("/auth/forgot-password", {
+        email: data.email,
+      });
+
       // El backend devuelve: { message: string, userId: number }
       return {
         success: true,
-        message: response.data.message || 'Código enviado exitosamente',
+        message: response.data.message || "Código enviado exitosamente",
         userId: response.data.userId,
       };
     } catch (error) {
@@ -110,17 +131,19 @@ class AuthService {
   /**
    * Verifica el código de recuperación de 6 dígitos
    */
-  async verifyCode(data: VerifyCodeData & { userId?: number }): Promise<VerifyCodeResponse & { resetId?: number }> {
+  async verifyCode(
+    data: VerifyCodeData & { userId?: number },
+  ): Promise<VerifyCodeResponse & { resetId?: number }> {
     try {
-      const response = await api.post('/auth/verify-code', {
+      const response = await api.post("/auth/verify-code", {
         userId: data.userId,
         code: data.code,
       });
-      
+
       // El backend devuelve: { message: string, resetId: number }
       return {
         success: true,
-        message: response.data.message || 'Código verificado exitosamente',
+        message: response.data.message || "Código verificado exitosamente",
         isValid: true,
         resetId: response.data.resetId,
       };
@@ -137,16 +160,21 @@ class AuthService {
   /**
    * Restablece la contraseña con el código verificado
    */
-  async resetPassword(data: { email: string; resetId: number; new_password: string }): Promise<ResetPasswordResponse> {
+  async resetPassword(data: {
+    email: string;
+    resetId: number;
+    new_password: string;
+  }): Promise<ResetPasswordResponse> {
     try {
-      const response = await api.post('/auth/reset-password', {
+      const response = await api.post("/auth/reset-password", {
         resetId: data.resetId,
         newPassword: data.new_password, // Backend espera 'newPassword' en camelCase
       });
-      
+
       return {
         success: true,
-        message: response.data.message || 'Contraseña restablecida exitosamente',
+        message:
+          response.data.message || "Contraseña restablecida exitosamente",
       };
     } catch (error) {
       const message = getErrorMessage(error);
@@ -164,11 +192,11 @@ class AuthService {
     try {
       // Limpiar datos locales
       await clearAuthData();
-      
+
       // Opcional: Llamar al endpoint de logout si existe
       // await api.post('/auth/logout');
     } catch (error) {
-      console.error('Error cerrando sesión:', error);
+      console.error("Error cerrando sesión:", error);
       // Igual limpiamos los datos locales
       await clearAuthData();
     }
@@ -182,7 +210,7 @@ class AuthService {
     try {
       // Intenta hacer una petición simple para verificar el token
       // Usamos el endpoint de perfil que existe en el backend
-      const response = await api.get('/organizer/profile');
+      const response = await api.get("/organizer/profile");
       return response.status === 200;
     } catch (error) {
       return false;
@@ -192,4 +220,3 @@ class AuthService {
 
 // Exportar instancia única del servicio
 export default new AuthService();
-
