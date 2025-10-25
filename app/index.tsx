@@ -13,6 +13,10 @@ setNotificationHandler({
   }),
 });
 
+/**
+ * Pantalla inicial de la app
+ * Redirige al usuario según su estado de autenticación
+ */
 export default function Index() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
