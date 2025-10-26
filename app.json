@@ -4,6 +4,7 @@
     "slug": "eventconnect-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
     "scheme": "eventconnectmobile",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -15,8 +16,12 @@
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE"
       },
+      "splash": {
+        "image": "./assets/images/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#ffffff"
+      },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.eventconnectmobile",
       "googleServicesFile": "./google-services.json"
     },
@@ -27,6 +32,7 @@
       [
         "expo-splash-screen",
         {
+          "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",

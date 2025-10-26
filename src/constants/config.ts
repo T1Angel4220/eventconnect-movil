@@ -1,3 +1,5 @@
+import Constants from "expo-constants";
+
 // Configuración de la aplicación
 
 // URL del backend
@@ -44,3 +46,7 @@ export const VALIDATION_RULES = {
   NAME_MAX_LENGTH: 50,
   CODE_LENGTH: 6,
 } as const;
+
+export const PROJECT_ID =
+  Constants?.expoConfig?.extra?.eas?.projectId ??
+  Constants?.easConfig?.projectId;

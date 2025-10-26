@@ -1,25 +1,23 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  Image,
-} from "react-native";
-import { useRouter } from "expo-router";
-import { Button, Input, IOSAlert, AlertButton } from "@/src/components";
+import { AlertButton, Button, Input, IOSAlert } from "@/src/components";
+import { getIOSColor, IOS_COLORS } from "@/src/constants/iosStyles";
 import { useAuth, useTheme } from "@/src/hooks";
 import { validateEmail } from "@/src/utils";
+import { registerForPushNotificationsAsync } from "@/src/utils/token";
 import { Ionicons } from "@expo/vector-icons";
-import { IOS_COLORS, getIOSColor } from "@/src/constants/iosStyles";
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
+import {
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
-/**
- * Pantalla de Login - Diseño iOS Nativo
- */
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
@@ -30,6 +28,37 @@ export default function LoginScreen() {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const registerToken = async () => {
+    try {
+      const token = await registerForPushNotificationsAsync();
+      console.log("Expo token: " + token);
+    } catch (error) {
+      console.error("Error" + error);
+    }
+  };
+
+  // useEffect(() => {
+  //   registerToken();
+  //
+  //   // const notificationListener = Notifications.addNotificationReceivedListener(
+  //   //   (notification) => {
+  //   //     setNotification(notification);
+  //   //     console.log("Notification received");
+  //   //   },
+  //   // );
+  //   //
+  //   // const responseListener =
+  //   //   Notifications.addNotificationResponseReceivedListener((response) => {
+  //   //     console.log(response);
+  //   //     console.log("Response received");
+  //   //   });
+  //   //
+  //   // return () => {
+  //   //   notificationListener.remove();
+  //   //   responseListener.remove();
+  //   // };
+  // }, []);
 
   // Estado para la alerta iOS
   const [alertConfig, setAlertConfig] = useState<{
@@ -81,17 +110,19 @@ export default function LoginScreen() {
 
       const result = await login({ email, password });
 
-      if (result.success) {
-        router.replace("/(tabs)");
-      } else {
+      if (!result.success) {
         setAlertConfig({
           visible: true,
           title: "Error de Autenticación",
           message: result.message,
           buttons: [{ text: "OK", style: "default" }],
         });
-        setIsLoading(false);
+        return;
       }
+
+      await registerToken();
+
+      router.replace("/(tabs)");
     } catch (error) {
       setAlertConfig({
         visible: true,
@@ -100,6 +131,7 @@ export default function LoginScreen() {
         buttons: [{ text: "OK", style: "default" }],
       });
       console.error("Error en login:", error);
+    } finally {
       setIsLoading(false);
     }
   };

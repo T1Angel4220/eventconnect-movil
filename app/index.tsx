@@ -1,9 +1,10 @@
 import { useEffect } from "react";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
-import { useRouter } from "expo-router";
+import { View, StyleSheet, Text, ActivityIndicator } from "react-native";
+import { Href, useRouter } from "expo-router";
 import { useAuth } from "@/src/hooks";
 import { setNotificationHandler } from "expo-notifications";
 
+// Demasiado importante: configurar el manejador de notificaciones en la raíz de la aplicación
 setNotificationHandler({
   handleNotification: async () => ({
     shouldPlaySound: true,
@@ -18,20 +19,24 @@ setNotificationHandler({
  * Redirige al usuario según su estado de autenticación
  */
 export default function Index() {
-  const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading) {
-      if (isAuthenticated) {
-        // Usuario autenticado → ir al dashboard
-        router.replace("/(tabs)");
-      } else {
-        // Usuario no autenticado → ir al login
-        router.replace("/(auth)/login");
-      }
-    }
+    if (isLoading) return;
+
+    let route: Href = isAuthenticated ? "/(tabs)" : "/(auth)/login";
+
+    router.replace(route);
   }, [isLoading, isAuthenticated]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <Text>Cargando...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
