@@ -7,6 +7,8 @@ interface TokenData {
 
 interface ApiResponse {
   success: boolean;
+  message?: string;
+  error?: string;
 }
 
 class TokenService {
@@ -19,9 +21,29 @@ class TokenService {
       console.error("Error creating token:", error);
       return {
         success: false,
+        error: "Failed to create token",
+      };
+    }
+  };
+
+  deleteToken = async (user_id: number): Promise<ApiResponse> => {
+    try {
+      const response = await api.delete<ApiResponse>("/token/" + user_id);
+
+      console.log("Delete token response:", response);
+
+      return { success: true, message: "Token deleted successfully" };
+    } catch (error) {
+      console.error("Error deleting token:", error);
+      return {
+        success: false,
+        error: "Failed to delete token",
       };
     }
   };
 }
 
-export const tokenService = new TokenService();
+const tokenService = new TokenService();
+
+export default tokenService;
+export { TokenData, ApiResponse };

@@ -1,6 +1,7 @@
 import { AlertButton, Button, Input, IOSAlert } from "@/src/components";
 import { getIOSColor, IOS_COLORS } from "@/src/constants/iosStyles";
 import { useAuth, useTheme } from "@/src/hooks";
+import tokenService, { TokenData } from "@/src/services/tokenService";
 import { validateEmail } from "@/src/utils";
 import { registerForPushNotificationsAsync } from "@/src/utils/token";
 import { Ionicons } from "@expo/vector-icons";
@@ -29,10 +30,24 @@ export default function LoginScreen() {
   const [passwordError, setPasswordError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const registerToken = async () => {
+  const registerToken = async (userID: number) => {
     try {
       const token = await registerForPushNotificationsAsync();
-      console.log("Expo token: " + token);
+
+      if (!token) {
+        throw new Error("No se pudo obtener el token de notificaciones");
+      }
+
+      const tokenData: TokenData = {
+        user_id: userID,
+        token,
+      };
+
+      const { success } = await tokenService.createToken(tokenData);
+
+      if (!success) {
+        throw new Error("No se pudo registrar el token en el servidor");
+      }
     } catch (error) {
       console.error("Error" + error);
     }
@@ -108,19 +123,29 @@ export default function LoginScreen() {
     try {
       setIsLoading(true);
 
-      const result = await login({ email, password });
+      const { success, message, userID } = await login({ email, password });
 
-      if (!result.success) {
+      if (!success) {
         setAlertConfig({
           visible: true,
           title: "Error de Autenticación",
-          message: result.message,
+          message: message,
           buttons: [{ text: "OK", style: "default" }],
         });
         return;
       }
 
-      await registerToken();
+      if (!userID) {
+        setAlertConfig({
+          visible: true,
+          title: "Error",
+          message: "No se pudo obtener la información del usuario.",
+          buttons: [{ text: "OK", style: "default" }],
+        });
+        return;
+      }
+
+      await registerToken(userID);
 
       router.replace("/(tabs)");
     } catch (error) {

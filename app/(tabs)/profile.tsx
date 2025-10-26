@@ -12,8 +12,16 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth, useTheme } from "@/src/hooks";
 import { userService } from "@/src/services";
-import { IOS_TYPOGRAPHY, IOS_SPACING, IOS_RADIUS, IOS_COLORS, IOS_SHADOWS, getIOSColor } from "@/src/constants/iosStyles";
+import {
+  IOS_TYPOGRAPHY,
+  IOS_SPACING,
+  IOS_RADIUS,
+  IOS_COLORS,
+  IOS_SHADOWS,
+  getIOSColor,
+} from "@/src/constants/iosStyles";
 import { IOSAlert, AlertButton } from "@/src/components";
+import tokenService from "@/src/services/tokenService";
 
 /**
  * Pantalla de Perfil de Usuario - Estilo iOS/Apple
@@ -37,7 +45,7 @@ export default function ProfileScreen() {
   });
 
   // Estados para el diálogo de eliminación de cuenta
-  const [deletePassword, setDeletePassword] = useState('');
+  const [deletePassword, setDeletePassword] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
 
   const styles = createStyles(isDark);
@@ -46,14 +54,14 @@ export default function ProfileScreen() {
    * Traduce el rol del usuario al español
    */
   const getRoleLabel = (role: string | undefined): string => {
-    if (!role) return '';
-    
+    if (!role) return "";
+
     const roleMap: { [key: string]: string } = {
-      'participant': 'Participante',
-      'organizer': 'Organizador',
-      'admin': 'Administrador',
+      participant: "Participante",
+      organizer: "Organizador",
+      admin: "Administrador",
     };
-    
+
     return roleMap[role.toLowerCase()] || role;
   };
 
@@ -62,8 +70,19 @@ export default function ProfileScreen() {
    */
   const performLogout = async () => {
     try {
+      if (!user) {
+        throw new Error("Usuario no autenticado");
+      }
+
+      const { success, message } = await tokenService.deleteToken(
+        user?.user_id,
+      );
+
+      if (!success) {
+        throw new Error(message || "No se pudo eliminar el token");
+      }
+
       await logout();
-      // Redirigir al login después de cerrar sesión
       router.replace("/(auth)/login");
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
@@ -93,24 +112,26 @@ export default function ProfileScreen() {
    * Maneja la eliminación de cuenta
    */
   const handleDeleteAccount = () => {
-    setDeletePassword('');
+    setDeletePassword("");
     setAlertConfig({
       visible: true,
       title: "⚠️ Eliminar Cuenta",
-      message: "Esta acción es permanente y no se puede deshacer.\n\nSe eliminarán todos tus datos, eventos e inscripciones.\n\nIngresa tu contraseña para confirmar:",
+      message:
+        "Esta acción es permanente y no se puede deshacer.\n\nSe eliminarán todos tus datos, eventos e inscripciones.\n\nIngresa tu contraseña para confirmar:",
       buttons: [
-        { 
-          text: "Cancelar", 
+        {
+          text: "Cancelar",
           style: "cancel",
           onPress: () => {
-            setDeletePassword('');
-          }
+            setDeletePassword("");
+          },
         },
         {
           text: "Eliminar",
           style: "destructive",
           loading: isDeleting,
-          onPress: (passwordFromAlert) => confirmDeleteAccount(passwordFromAlert),
+          onPress: (passwordFromAlert) =>
+            confirmDeleteAccount(passwordFromAlert),
         },
       ],
     });
@@ -122,10 +143,15 @@ export default function ProfileScreen() {
    */
   const confirmDeleteAccount = async (passwordFromAlert?: string) => {
     // Usar la contraseña que viene del componente IOSAlert directamente
-    const currentPassword = passwordFromAlert?.trim() || '';
-    
-    console.log('🔐 Contraseña recibida:', currentPassword ? `"${currentPassword}" (${currentPassword.length} caracteres)` : 'vacía');
-    
+    const currentPassword = passwordFromAlert?.trim() || "";
+
+    console.log(
+      "🔐 Contraseña recibida:",
+      currentPassword
+        ? `"${currentPassword}" (${currentPassword.length} caracteres)`
+        : "vacía",
+    );
+
     if (!currentPassword) {
       setAlertConfig({
         visible: true,
@@ -143,13 +169,13 @@ export default function ProfileScreen() {
       if (result.success) {
         // Cerrar el modal primero
         setAlertConfig({ ...alertConfig, visible: false });
-        setDeletePassword('');
+        setDeletePassword("");
         setIsDeleting(false);
-        
+
         // Cerrar sesión y redirigir inmediatamente
         await logout();
-        router.replace('/(auth)/login');
-        
+        router.replace("/(auth)/login");
+
         // Mostrar mensaje de éxito estilo iOS después de redirigir
         setTimeout(() => {
           setAlertConfig({
@@ -164,7 +190,7 @@ export default function ProfileScreen() {
         setAlertConfig({
           visible: true,
           title: "Error",
-          message: result.message || 'No se pudo eliminar la cuenta',
+          message: result.message || "No se pudo eliminar la cuenta",
           buttons: [{ text: "OK", style: "default" }],
         });
       }
@@ -184,29 +210,35 @@ export default function ProfileScreen() {
    */
   const themeOptions = [
     {
-      key: 'system',
-      label: 'Sistema',
-      description: 'Usar configuración del dispositivo',
-      icon: 'phone-portrait-outline',
+      key: "system",
+      label: "Sistema",
+      description: "Usar configuración del dispositivo",
+      icon: "phone-portrait-outline",
     },
     {
-      key: 'light',
-      label: 'Claro',
-      description: 'Siempre usar modo claro',
-      icon: 'sunny-outline',
+      key: "light",
+      label: "Claro",
+      description: "Siempre usar modo claro",
+      icon: "sunny-outline",
     },
     {
-      key: 'dark',
-      label: 'Oscuro',
-      description: 'Siempre usar modo oscuro',
-      icon: 'moon-outline',
+      key: "dark",
+      label: "Oscuro",
+      description: "Siempre usar modo oscuro",
+      icon: "moon-outline",
     },
   ] as const;
 
   /**
    * Secciones del perfil
    */
-  const ProfileSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  const ProfileSection = ({
+    title,
+    children,
+  }: {
+    title: string;
+    children: React.ReactNode;
+  }) => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
       {children}
@@ -229,7 +261,13 @@ export default function ProfileScreen() {
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Ionicons
-              name={theme === 'system' ? 'phone-portrait-outline' : isDark ? "sunny" : "moon"}
+              name={
+                theme === "system"
+                  ? "phone-portrait-outline"
+                  : isDark
+                    ? "sunny"
+                    : "moon"
+              }
               size={22}
               color={getIOSColor(IOS_COLORS.systemBlue, isDark)}
             />
@@ -246,10 +284,10 @@ export default function ProfileScreen() {
               />
             ) : (
               <View style={styles.avatar}>
-                <Ionicons 
-                  name="person" 
-                  size={56} 
-                  color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+                <Ionicons
+                  name="person"
+                  size={56}
+                  color={getIOSColor(IOS_COLORS.systemBlue, isDark)}
                 />
               </View>
             )}
@@ -269,14 +307,14 @@ export default function ProfileScreen() {
         <View style={styles.quickActionsContainer}>
           <TouchableOpacity
             style={styles.quickActionButton}
-            onPress={() => router.push('/(profile)/edit-profile')}
+            onPress={() => router.push("/(profile)/edit-profile")}
             activeOpacity={0.7}
           >
             <View style={styles.quickActionIcon}>
-              <Ionicons 
-                name="pencil" 
-                size={20} 
-                color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+              <Ionicons
+                name="pencil"
+                size={20}
+                color={getIOSColor(IOS_COLORS.systemBlue, isDark)}
               />
             </View>
             <Text style={styles.quickActionText}>Editar Perfil</Text>
@@ -284,14 +322,14 @@ export default function ProfileScreen() {
 
           <TouchableOpacity
             style={styles.quickActionButton}
-            onPress={() => router.push('/(profile)/change-password')}
+            onPress={() => router.push("/(profile)/change-password")}
             activeOpacity={0.7}
           >
             <View style={styles.quickActionIcon}>
-              <Ionicons 
-                name="lock-closed" 
-                size={20} 
-                color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+              <Ionicons
+                name="lock-closed"
+                size={20}
+                color={getIOSColor(IOS_COLORS.systemBlue, isDark)}
               />
             </View>
             <Text style={styles.quickActionText}>Contraseña</Text>
@@ -303,14 +341,14 @@ export default function ProfileScreen() {
           <View style={styles.card}>
             <TouchableOpacity
               style={styles.infoRow}
-              onPress={() => router.push('/(profile)/edit-profile')}
+              onPress={() => router.push("/(profile)/edit-profile")}
               activeOpacity={0.7}
             >
               <View style={styles.infoIcon}>
-                <Ionicons 
-                  name="person-outline" 
-                  size={20} 
-                  color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+                <Ionicons
+                  name="person-outline"
+                  size={20}
+                  color={getIOSColor(IOS_COLORS.systemBlue, isDark)}
                 />
               </View>
               <View style={styles.infoContent}>
@@ -319,10 +357,10 @@ export default function ProfileScreen() {
                   {user?.first_name} {user?.last_name}
                 </Text>
               </View>
-              <Ionicons 
-                name="chevron-forward" 
-                size={20} 
-                color={getIOSColor(IOS_COLORS.label.tertiary, isDark)} 
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={getIOSColor(IOS_COLORS.label.tertiary, isDark)}
               />
             </TouchableOpacity>
 
@@ -330,24 +368,24 @@ export default function ProfileScreen() {
 
             <TouchableOpacity
               style={styles.infoRow}
-              onPress={() => router.push('/(profile)/edit-profile')}
+              onPress={() => router.push("/(profile)/edit-profile")}
               activeOpacity={0.7}
             >
               <View style={styles.infoIcon}>
-                <Ionicons 
-                  name="mail-outline" 
-                  size={20} 
-                  color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+                <Ionicons
+                  name="mail-outline"
+                  size={20}
+                  color={getIOSColor(IOS_COLORS.systemBlue, isDark)}
                 />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Correo Electrónico</Text>
                 <Text style={styles.infoValue}>{user?.email}</Text>
               </View>
-              <Ionicons 
-                name="chevron-forward" 
-                size={20} 
-                color={getIOSColor(IOS_COLORS.label.tertiary, isDark)} 
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={getIOSColor(IOS_COLORS.label.tertiary, isDark)}
               />
             </TouchableOpacity>
           </View>
@@ -358,24 +396,24 @@ export default function ProfileScreen() {
           <View style={styles.card}>
             <TouchableOpacity
               style={styles.infoRow}
-              onPress={() => router.push('/(profile)/change-password')}
+              onPress={() => router.push("/(profile)/change-password")}
               activeOpacity={0.7}
             >
               <View style={styles.infoIcon}>
-                <Ionicons 
-                  name="lock-closed-outline" 
-                  size={20} 
-                  color={getIOSColor(IOS_COLORS.systemBlue, isDark)} 
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={20}
+                  color={getIOSColor(IOS_COLORS.systemBlue, isDark)}
                 />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Contraseña</Text>
                 <Text style={styles.infoValue}>••••••••</Text>
               </View>
-              <Ionicons 
-                name="chevron-forward" 
-                size={20} 
-                color={getIOSColor(IOS_COLORS.label.tertiary, isDark)} 
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={getIOSColor(IOS_COLORS.label.tertiary, isDark)}
               />
             </TouchableOpacity>
           </View>
@@ -392,21 +430,26 @@ export default function ProfileScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={styles.themeOptionLeft}>
-                    <View style={[
-                      styles.themeOptionIcon,
-                      theme === option.key && styles.themeOptionIconActive
-                    ]}>
+                    <View
+                      style={[
+                        styles.themeOptionIcon,
+                        theme === option.key && styles.themeOptionIconActive,
+                      ]}
+                    >
                       <Ionicons
                         name={option.icon}
                         size={20}
-                        color={theme === option.key 
-                          ? getIOSColor(IOS_COLORS.systemBlue, isDark)
-                          : getIOSColor(IOS_COLORS.label.secondary, isDark)
+                        color={
+                          theme === option.key
+                            ? getIOSColor(IOS_COLORS.systemBlue, isDark)
+                            : getIOSColor(IOS_COLORS.label.secondary, isDark)
                         }
                       />
                     </View>
                     <View style={styles.themeOptionContent}>
-                      <Text style={styles.themeOptionLabel}>{option.label}</Text>
+                      <Text style={styles.themeOptionLabel}>
+                        {option.label}
+                      </Text>
                       <Text style={styles.themeOptionDescription}>
                         {option.description}
                       </Text>
@@ -420,7 +463,9 @@ export default function ProfileScreen() {
                     />
                   )}
                 </TouchableOpacity>
-                {index < themeOptions.length - 1 && <View style={styles.divider} />}
+                {index < themeOptions.length - 1 && (
+                  <View style={styles.divider} />
+                )}
               </React.Fragment>
             ))}
           </View>
@@ -450,10 +495,10 @@ export default function ProfileScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.dangerIcon}>
-                <Ionicons 
-                  name="trash-outline" 
-                  size={20} 
-                  color={getIOSColor(IOS_COLORS.red, isDark)} 
+                <Ionicons
+                  name="trash-outline"
+                  size={20}
+                  color={getIOSColor(IOS_COLORS.red, isDark)}
                 />
               </View>
               <View style={styles.infoContent}>
@@ -462,10 +507,10 @@ export default function ProfileScreen() {
                   Eliminar permanentemente tu cuenta y todos los datos
                 </Text>
               </View>
-              <Ionicons 
-                name="chevron-forward" 
-                size={20} 
-                color={getIOSColor(IOS_COLORS.red, isDark)} 
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={getIOSColor(IOS_COLORS.red, isDark)}
               />
             </TouchableOpacity>
           </View>
@@ -483,7 +528,7 @@ export default function ProfileScreen() {
 
         {/* Footer */}
         <Text style={styles.footer}>
-          © 2025 Event Connect{'\n'}
+          © 2025 Event Connect{"\n"}
           Sistema de Gestión de Eventos Universitarios
         </Text>
       </ScrollView>
@@ -496,7 +541,7 @@ export default function ProfileScreen() {
         buttons={alertConfig.buttons}
         onDismiss={() => {
           setAlertConfig({ ...alertConfig, visible: false });
-          setDeletePassword('');
+          setDeletePassword("");
         }}
         showInput={alertConfig.title?.includes("Eliminar Cuenta")}
         inputPlaceholder="Contraseña"
@@ -525,9 +570,9 @@ const createStyles = (isDark: boolean) => {
       paddingBottom: IOS_SPACING.xxxl,
     },
     header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
       paddingHorizontal: IOS_SPACING.lg,
       paddingTop: IOS_SPACING.xl,
       paddingBottom: IOS_SPACING.lg,
@@ -540,7 +585,7 @@ const createStyles = (isDark: boolean) => {
       padding: IOS_SPACING.sm,
     },
     avatarContainer: {
-      alignItems: 'center',
+      alignItems: "center",
       paddingVertical: IOS_SPACING.xl,
       paddingHorizontal: IOS_SPACING.lg,
     },
@@ -551,11 +596,11 @@ const createStyles = (isDark: boolean) => {
       width: 100,
       height: 100,
       borderRadius: 50,
-      backgroundColor: isDark 
-        ? 'rgba(10, 132, 255, 0.15)' 
-        : 'rgba(0, 122, 255, 0.1)',
-      alignItems: 'center',
-      justifyContent: 'center',
+      backgroundColor: isDark
+        ? "rgba(10, 132, 255, 0.15)"
+        : "rgba(0, 122, 255, 0.1)",
+      alignItems: "center",
+      justifyContent: "center",
     },
     avatarImage: {
       width: 100,
@@ -567,13 +612,13 @@ const createStyles = (isDark: boolean) => {
       ...IOS_TYPOGRAPHY.title1,
       color: getIOSColor(colors.label.primary, isDark),
       marginBottom: IOS_SPACING.xs,
-      textAlign: 'center',
+      textAlign: "center",
     },
     userEmail: {
       ...IOS_TYPOGRAPHY.body,
       color: getIOSColor(colors.label.secondary, isDark),
       marginBottom: IOS_SPACING.sm,
-      textAlign: 'center',
+      textAlign: "center",
     },
     roleBadge: {
       paddingHorizontal: IOS_SPACING.md,
@@ -587,11 +632,11 @@ const createStyles = (isDark: boolean) => {
     roleText: {
       ...IOS_TYPOGRAPHY.subheadline,
       color: getIOSColor(colors.label.secondary, isDark),
-      textTransform: 'capitalize',
-      fontWeight: '600',
+      textTransform: "capitalize",
+      fontWeight: "600",
     },
     quickActionsContainer: {
-      flexDirection: 'row',
+      flexDirection: "row",
       paddingHorizontal: IOS_SPACING.lg,
       paddingVertical: IOS_SPACING.md,
       gap: IOS_SPACING.md,
@@ -599,7 +644,7 @@ const createStyles = (isDark: boolean) => {
     },
     quickActionButton: {
       flex: 1,
-      alignItems: 'center',
+      alignItems: "center",
       paddingVertical: IOS_SPACING.md,
       paddingHorizontal: IOS_SPACING.sm,
       backgroundColor: isDark
@@ -613,17 +658,17 @@ const createStyles = (isDark: boolean) => {
       height: 44,
       borderRadius: 22,
       backgroundColor: isDark
-        ? 'rgba(10, 132, 255, 0.15)'
-        : 'rgba(0, 122, 255, 0.1)',
-      alignItems: 'center',
-      justifyContent: 'center',
+        ? "rgba(10, 132, 255, 0.15)"
+        : "rgba(0, 122, 255, 0.1)",
+      alignItems: "center",
+      justifyContent: "center",
       marginBottom: IOS_SPACING.xs,
     },
     quickActionText: {
       ...IOS_TYPOGRAPHY.subheadline,
       color: getIOSColor(colors.label.primary, isDark),
-      fontWeight: '600',
-      textAlign: 'center',
+      fontWeight: "600",
+      textAlign: "center",
     },
     section: {
       marginBottom: IOS_SPACING.xl,
@@ -632,7 +677,7 @@ const createStyles = (isDark: boolean) => {
     sectionTitle: {
       ...IOS_TYPOGRAPHY.footnote,
       color: getIOSColor(colors.label.secondary, isDark),
-      textTransform: 'uppercase',
+      textTransform: "uppercase",
       marginBottom: IOS_SPACING.sm,
       paddingLeft: 2,
     },
@@ -641,23 +686,23 @@ const createStyles = (isDark: boolean) => {
         ? getIOSColor(colors.background.secondary, isDark)
         : getIOSColor(colors.background.tertiary, isDark),
       borderRadius: IOS_RADIUS.card,
-      overflow: 'hidden',
+      overflow: "hidden",
       ...IOS_SHADOWS.small,
     },
     infoRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       padding: IOS_SPACING.md,
     },
     infoIcon: {
       width: 36,
       height: 36,
       borderRadius: 18,
-      backgroundColor: isDark 
-        ? 'rgba(10, 132, 255, 0.15)' 
-        : 'rgba(0, 122, 255, 0.1)',
-      alignItems: 'center',
-      justifyContent: 'center',
+      backgroundColor: isDark
+        ? "rgba(10, 132, 255, 0.15)"
+        : "rgba(0, 122, 255, 0.1)",
+      alignItems: "center",
+      justifyContent: "center",
       marginRight: IOS_SPACING.md,
     },
     infoContent: {
@@ -678,14 +723,14 @@ const createStyles = (isDark: boolean) => {
       marginLeft: IOS_SPACING.md,
     },
     themeOption: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
       padding: IOS_SPACING.md,
     },
     themeOptionLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       flex: 1,
     },
     themeOptionIcon: {
@@ -695,14 +740,14 @@ const createStyles = (isDark: boolean) => {
       backgroundColor: isDark
         ? getIOSColor(colors.fill.tertiary, isDark)
         : getIOSColor(colors.background.secondary, isDark),
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: "center",
+      justifyContent: "center",
       marginRight: IOS_SPACING.md,
     },
     themeOptionIconActive: {
-      backgroundColor: isDark 
-        ? 'rgba(10, 132, 255, 0.15)' 
-        : 'rgba(0, 122, 255, 0.1)',
+      backgroundColor: isDark
+        ? "rgba(10, 132, 255, 0.15)"
+        : "rgba(0, 122, 255, 0.1)",
     },
     themeOptionContent: {
       flex: 1,
@@ -717,9 +762,9 @@ const createStyles = (isDark: boolean) => {
       color: getIOSColor(colors.label.secondary, isDark),
     },
     aboutRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
       padding: IOS_SPACING.md,
     },
     aboutLabel: {
@@ -731,9 +776,9 @@ const createStyles = (isDark: boolean) => {
       color: getIOSColor(colors.label.secondary, isDark),
     },
     logoutButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
       backgroundColor: getIOSColor(colors.red, isDark),
       marginHorizontal: IOS_SPACING.lg,
       paddingVertical: IOS_SPACING.md,
@@ -744,29 +789,29 @@ const createStyles = (isDark: boolean) => {
     },
     logoutText: {
       ...IOS_TYPOGRAPHY.body,
-      color: '#FFFFFF',
-      fontWeight: '600',
+      color: "#FFFFFF",
+      fontWeight: "600",
     },
     dangerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       padding: IOS_SPACING.md,
     },
     dangerIcon: {
       width: 36,
       height: 36,
       borderRadius: 18,
-      backgroundColor: isDark 
-        ? 'rgba(255, 59, 48, 0.15)' 
-        : 'rgba(255, 59, 48, 0.1)',
-      alignItems: 'center',
-      justifyContent: 'center',
+      backgroundColor: isDark
+        ? "rgba(255, 59, 48, 0.15)"
+        : "rgba(255, 59, 48, 0.1)",
+      alignItems: "center",
+      justifyContent: "center",
       marginRight: IOS_SPACING.md,
     },
     dangerLabel: {
       ...IOS_TYPOGRAPHY.body,
       color: getIOSColor(colors.red, isDark),
-      fontWeight: '600',
+      fontWeight: "600",
     },
     dangerDescription: {
       ...IOS_TYPOGRAPHY.caption1,
@@ -776,7 +821,7 @@ const createStyles = (isDark: boolean) => {
     footer: {
       ...IOS_TYPOGRAPHY.caption1,
       color: getIOSColor(colors.label.tertiary, isDark),
-      textAlign: 'center',
+      textAlign: "center",
       marginTop: IOS_SPACING.xl,
       paddingHorizontal: IOS_SPACING.lg,
       lineHeight: 18,
