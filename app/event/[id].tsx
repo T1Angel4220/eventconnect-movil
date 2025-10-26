@@ -186,20 +186,21 @@ export default function EventDetailsScreen() {
           title: "¡Inscripción Exitosa!",
           message: "Te has inscrito correctamente al evento. Podrás ver tus eventos en la pestaña 'Mis Eventos'.",
           buttons: [
-            {
-              text: "Ver Mis Eventos",
-              style: "default",
-              onPress: () => {
-                setAlertConfig({ ...alertConfig, visible: false });
-                router.push("/(tabs)/my-events");
-              },
-            },
+
             {
               text: "Cerrar",
               style: "cancel",
               onPress: () => {
                 setAlertConfig({ ...alertConfig, visible: false });
                 router.back();
+              },
+            },
+                        {
+              text: "Mis Eventos",
+              style: "default",
+              onPress: () => {
+                setAlertConfig({ ...alertConfig, visible: false });
+                router.push("/(tabs)/my-events");
               },
             },
           ],

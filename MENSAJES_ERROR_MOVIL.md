@@ -133,7 +133,7 @@ setAlertConfig({
   message: "Te has inscrito correctamente al evento. Podrás ver tus eventos en la pestaña 'Mis Eventos'.",
   buttons: [
     {
-      text: "Ver Mis Eventos",
+      text: "Mis Eventos",
       style: "default",
       onPress: () => {
         setAlertConfig({ ...alertConfig, visible: false });
