@@ -4,5 +4,7 @@ export { default as authService } from './authService';
 export { default as eventService } from './eventService';
 export { default as registrationService } from './registrationService';
 export { default as userService } from './userService';
+export { default as tokenService } from './tokenService';
 export { default as api, getErrorMessage } from './api';
+
 

@@ -1,44 +1,90 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# ===================================================
+# EventConnect Mobile - .gitignore
+# ===================================================
 
-# dependencies
+# Dependencias
 node_modules/
+package-lock.json.bak
 pnpm-*.yaml
 
-# Expo
+# Expo & Metro
 .expo/
+.expo-shared/
 dist/
 web-build/
 expo-env.d.ts
+.metro-health-check*
 
-# Native
-.kotlin/
-*.orig.*
+# Variables de entorno y secretos (NUNCA SUBIR AL PORTAFOLIO)
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Credenciales de Firebase y servicios móviles
+google-services.json
+!google-services.json.example
+GoogleService-Info.plist
+!GoogleService-Info.plist.example
+
+# Certificados nativos y firmas
 *.jks
+*.keystore
 *.p8
 *.p12
 *.key
+*.pem
 *.mobileprovision
+.kotlin/
+*.orig.*
 
-# Metro
-.metro-health-check*
+# Archivos comprimidos y respaldos (evitar archivos basura)
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+*.bak
+*.backup
+*.tmp
+*.temp
+*~
+*.swp
+*.swo
 
-# debug
+# Logs y depuración
+*.log
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+pnpm-debug.log*
 
-# macOS
+# Sistema operativo
 .DS_Store
-*.pem
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
 
-# local env files
-.env*.local
+# IDEs y editores
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
 
-# typescript
+# TypeScript
 *.tsbuildinfo
 
-app-example
+# Plantillas y carpetas temporales Expo
+app-example/
 
-# generated native folders
+# Directorios nativos generados por Expo prebuild
 /ios
 /android

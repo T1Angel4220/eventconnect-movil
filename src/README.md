@@ -1,333 +1,115 @@
-# EventConnect Mobile - Configuración de Servicios API
+# 🧩 EventConnect Mobile - Arquitectura Interna del Núcleo (`src/`)
 
-## ✅ Configuración Completada
-
-Se ha configurado exitosamente toda la infraestructura de servicios API para la aplicación móvil.
+Este directorio contiene toda la lógica de negocio, servicios de red, gestión de estado, diseño y componentes reutilizables de la aplicación móvil **EventConnect**.
 
 ---
 
-## 📁 Estructura Creada
+## 📁 Estructura del Directorio
 
 ```
 src/
-├── constants/
-│   └── config.ts              # Configuración global (URLs, timeouts, keys)
+├── components/          # Componentes de UI modulares y reutilizables (estilo iOS)
+│   ├── Button.tsx                  # Botón personalizable con estados de carga y variantes
+│   ├── CodeInput.tsx               # Entrada segmentada para código de verificación (6 dígitos)
+│   ├── ErrorBoundary.tsx           # Captura global de excepciones no controladas de React
+│   ├── ErrorMessage.tsx            # Mensajes de error contextuales y amigables
+│   ├── EventFiltersModal.tsx       # Modal de filtrado avanzado (categoría, estado, fecha)
+│   ├── Input.tsx                   # Campo de texto con validación y alternador de visibilidad
+│   ├── IOSAlert.tsx                # Diálogo modal con estética nativa de iOS
+│   ├── IOSSuccessAlert.tsx         # Modal de confirmación y éxito estilizado
+│   ├── Loading.tsx                 # Spinner / indicador de carga centrado
+│   ├── NavigationBarController.tsx # Sincronizador de color de barra de navegación en Android
+│   ├── NoConnection.tsx            # Pantalla de aviso sin conexión a internet y reintento
+│   ├── PasswordStrength.tsx        # Indicador visual reactivo de seguridad de contraseña
+│   ├── Toast.tsx                   # Notificación flotante emergente tipo snackbar
+│   └── index.ts                    # Exportación unificada de componentes
 │
-├── types/
-│   ├── auth.types.ts          # Tipos de autenticación
-│   ├── event.types.ts         # Tipos de eventos
-│   ├── registration.types.ts  # Tipos de inscripciones
-│   └── index.ts               # Exportación unificada
+├── constants/           # Constantes del sistema, colores y temas
+│   ├── colors.ts                   # Paleta cromática para modo claro y oscuro
+│   ├── config.ts                   # URLs base, timeouts, claves de storage y reglas
+│   ├── iosStyles.ts                # Sistema de tipografía, sombras, bordes y espaciados iOS
+│   └── index.ts                    # Exportación unificada de constantes
 │
-├── utils/
-│   ├── storage.ts             # Helpers de AsyncStorage
-│   ├── validators.ts          # Funciones de validación
-│   ├── formatters.ts          # Funciones de formato
-│   └── index.ts               # Exportación unificada
+├── contexts/            # Proveedores de estado global (React Context API)
+│   ├── AuthContext.tsx             # Estado de sesión (usuario, login, logout, bootstrap)
+│   ├── ThemeContext.tsx            # Modo claro / oscuro persistente y reactivo
+│   ├── ToastContext.tsx            # Dispatcher para mostrar toasts en cualquier pantalla
+│   └── index.ts                    # Exportación unificada de contextos
 │
-└── services/
-    ├── api.ts                 # Configuración base de axios
-    ├── authService.ts         # Servicio de autenticación
-    ├── eventService.ts        # Servicio de eventos
-    ├── registrationService.ts # Servicio de inscripciones
-    └── index.ts               # Exportación unificada
+├── hooks/               # Custom hooks reutilizables
+│   ├── useAuth.ts                  # Hook de acceso rápido al contexto de autenticación
+│   ├── useTheme.ts                 # Hook para lectura y alternancia de tema visual
+│   ├── useNavigationBar.ts         # Hook de control sobre la barra de navegación del sistema
+│   ├── useColorScheme.ts           # Detección del esquema de color nativo del dispositivo
+│   └── index.ts                    # Exportación unificada de hooks
+│
+├── img/                 # Recursos gráficos y branding
+│   ├── logo_dark-f.png             # Logotipo oficial para fondo oscuro
+│   └── logo_light-f.png            # Logotipo oficial para fondo claro
+│
+├── services/            # Capa de consumo de API REST
+│   ├── api.ts                      # Instancia Axios con interceptores JWT y error handling
+│   ├── authService.ts              # Login, registro, recuperación y reseteo de contraseña
+│   ├── eventService.ts             # Exploración, búsqueda, detalle y eventos próximos
+│   ├── registrationService.ts      # Inscripción a eventos, mis registros y cancelación
+│   ├── tokenService.ts             # Registro y revocación de tokens FCM para notificaciones
+│   ├── userService.ts              # Gestión de perfil, cambio de clave y subida de avatar
+│   └── index.ts                    # Exportación unificada de servicios
+│
+├── types/               # Definiciones y contratos TypeScript
+│   ├── auth.types.ts               # Interfaces de usuario, credenciales y autenticación
+│   ├── event.types.ts              # Interfaces de eventos, categorías, estado y filtros
+│   ├── registration.types.ts       # Modelos de inscripciones y capacidades
+│   └── index.ts                    # Exportación unificada de tipos
+│
+└── utils/               # Funciones utilitarias puras y helpers
+    ├── formatters.ts               # Formateo de fechas, horas, nombres y porcentajes
+    ├── storage.ts                  # Capa de abstracción sobre @react-native-async-storage
+    ├── token.ts                    # Registro y permisos de Push Notifications (Expo/FCM)
+    ├── validators.ts               # Validadores de emails, contraseñas, nombres y códigos
+    └── index.ts                    # Exportación unificada de utilidades
 ```
 
 ---
 
-## 🔧 Archivos Creados
+## 🛠️ Módulos Clave
 
-### 1. **Tipos TypeScript** (4 archivos)
+### 1. Capa de Servicios (`src/services/`)
+- **`api.ts`**: Cliente HTTP basado en Axios.
+  - Inyecta automáticamente el encabezado `Authorization: Bearer <token>` mediante un interceptor de peticiones.
+  - Manejo unificado de respuestas y mapeo de errores HTTP (`401`, `403`, `404`, `500`, timeout) con mensajes amigables al usuario.
+- **`authService.ts`**: Endpoints de autenticación (`/auth/login`, `/auth/register`, `/auth/forgot-password`, `/auth/verify-code`, `/auth/reset-password`).
+- **`eventService.ts`**: Endpoints de consulta de eventos (`/events`, `/events/:id`, `/events/upcoming`, `/events/active`).
+- **`registrationService.ts`**: Endpoints de inscripciones a eventos (`/registrations`, `/registrations/my-registrations`, `/registrations/:id/cancel`).
+- **`tokenService.ts`**: Sincronización del token push FCM con el backend (`/token`).
+- **`userService.ts`**: Actualización de perfil del usuario, cambio de contraseña y subida de avatar mediante `multipart/form-data`.
 
-- ✅ `auth.types.ts` - User, Login, Register, ForgotPassword, etc.
-- ✅ `event.types.ts` - Event, EventWithOrganizer, EventDetails
-- ✅ `registration.types.ts` - Registration, RegistrationWithDetails
-- ✅ `index.ts` - Exportación unificada
+### 2. Gestión de Estado (`src/contexts/` & `src/hooks/`)
+- **`AuthContext` / `useAuth`**: Controla el ciclo de vida de la sesión del usuario. Carga el token guardado en `AsyncStorage` al iniciar (`bootstrapAsync`), orquesta el inicio/cierre de sesión y coordina la sincronización o eliminación del token de notificaciones push.
+- **`ThemeContext` / `useTheme`**: Administra el tema activo (`light` / `dark`), adaptando paletas de colores y estilos nativos. Permite al usuario alternar el modo manualmente o seguir el tema del sistema.
+- **`ToastContext` / `useToast`**: Permite lanzar notificaciones emergentes no bloqueantes desde cualquier nivel del árbol de componentes (`showToast('Operación exitosa', 'success')`).
 
-### 2. **Constantes** (1 archivo)
+### 3. Sistema de Diseño (`src/constants/iosStyles.ts` & `src/constants/colors.ts`)
+- Basado en directrices Human Interface Guidelines (HIG) de Apple adaptadas a React Native.
+- Soporte total para Dark Mode y Light Mode con contrastes accesibles.
+- Elevaciones, sombras y curvaturas de esquinas consistentes en toda la aplicación.
 
-- ✅ `config.ts` - API_BASE_URL, STORAGE_KEYS, VALIDATION_RULES, etc.
-
-### 3. **Utilidades** (4 archivos)
-
-- ✅ `storage.ts` - AsyncStorage helpers (saveToken, getUser, etc.)
-- ✅ `validators.ts` - Validaciones (email, password, nombre, código)
-- ✅ `formatters.ts` - Formateo (fechas, duración, nombres)
-- ✅ `index.ts` - Exportación unificada
-
-### 4. **Servicios** (5 archivos)
-
-- ✅ `api.ts` - Configuración de axios con interceptores
-- ✅ `authService.ts` - Login, Register, ForgotPassword, etc.
-- ✅ `eventService.ts` - CRUD de eventos
-- ✅ `registrationService.ts` - Gestión de inscripciones
-- ✅ `index.ts` - Exportación unificada
-
----
-
-## 📦 Dependencias Instaladas
-
-```bash
-✅ @react-native-async-storage/async-storage  # Persistencia local
-✅ axios                                       # Cliente HTTP
-```
+### 4. Utilidades y Validaciones (`src/utils/`)
+- **`storage.ts`**: Encapsula `AsyncStorage` con métodos fuertemente tipados (`saveToken`, `getToken`, `saveUser`, `getUser`, `clearAuthData`).
+- **`validators.ts`**: Validaciones regex de formato de email, fuerza de contraseñas (longitud, mayúsculas, minúsculas, números), longitud de nombres y formato de código OTP de 6 dígitos.
+- **`formatters.ts`**: Convierte fechas ISO en textos legibles en español, calcula tiempo restante para eventos y formatea porcentajes de ocupación de aforo.
+- **`token.ts`**: Solicita permisos nativos de notificaciones en Android/iOS, configura canales con alta prioridad y recupera el Expo Push Token.
 
 ---
 
-## 🚀 Funcionalidades Implementadas
-
-### **Servicio de Autenticación (`authService`)**
-
-```typescript
-import { authService } from '@/src/services';
-
-// Login
-const result = await authService.login({ email, password });
-
-// Registro
-const result = await authService.register({ first_name, last_name, email, password });
-
-// Recuperación de contraseña
-const result = await authService.forgotPassword({ email });
-
-// Verificar código
-const result = await authService.verifyCode({ email, code });
-
-// Resetear contraseña
-const result = await authService.resetPassword({ email, code, new_password });
-
-// Logout
-await authService.logout();
-
-// Verificar autenticación
-const isAuth = await authService.checkAuth();
-```
-
-### **Servicio de Eventos (`eventService`)**
-
-```typescript
-import { eventService } from '@/src/services';
-
-// Todos los eventos
-const result = await eventService.getAllEvents();
-
-// Evento por ID
-const result = await eventService.getEventById(eventId);
-
-// Eventos próximos
-const result = await eventService.getUpcomingEvents(limit);
-
-// Eventos activos
-const result = await eventService.getActiveEvents();
-
-// Buscar eventos
-const result = await eventService.searchEvents({ type: 'academic', search: 'tech' });
-```
-
-### **Servicio de Inscripciones (`registrationService`)**
-
-```typescript
-import { registrationService } from '@/src/services';
-
-// Inscribirse
-const result = await registrationService.createRegistration({ event_id });
-
-// Mis inscripciones
-const result = await registrationService.getMyRegistrations();
-
-// Cancelar inscripción
-const result = await registrationService.cancelRegistration(registrationId);
-
-// Capacidad del evento
-const result = await registrationService.getEventCapacity(eventId);
-```
-
----
-
-## 🔑 Funciones de Storage
-
-```typescript
-import { saveToken, getToken, saveUser, getUser, clearAuthData } from '@/src/utils';
-
-// Guardar token
-await saveToken('token_aqui');
-
-// Obtener token
-const token = await getToken();
-
-// Guardar usuario
-await saveUser(userData);
-
-// Obtener usuario
-const user = await getUser();
-
-// Limpiar todo
-await clearAuthData();
-```
-
----
-
-## ✅ Validaciones Disponibles
-
-```typescript
-import { validateEmail, validatePassword, validateName, validateCode } from '@/src/utils';
-
-// Validar email
-const { isValid, error } = validateEmail('test@example.com');
-
-// Validar contraseña
-const { isValid, error } = validatePassword('MyPass123');
-
-// Validar nombre
-const { isValid, error } = validateName('Juan', 'nombre');
-
-// Validar código
-const { isValid, error } = validateCode('123456');
-
-// Fuerza de contraseña (0-4)
-import { getPasswordStrength, getPasswordStrengthText, getPasswordStrengthColor } from '@/src/utils';
-
-const strength = getPasswordStrength('MyPass123'); // 3
-const text = getPasswordStrengthText(strength); // "Buena"
-const color = getPasswordStrengthColor(strength); // "#3b82f6"
-```
-
----
-
-## 📅 Formateadores Disponibles
-
-```typescript
-import {
-  formatDate,
-  formatDateTime,
-  formatTime,
-  getTimeUntilEvent,
-  formatDuration,
-  getEventTypeName,
-  formatFullName,
-  getInitials,
-  truncateText,
-} from '@/src/utils';
-
-// Formatear fecha
-formatDate('2025-01-15T10:00:00Z'); // "15 de enero de 2025"
-
-// Fecha con hora
-formatDateTime('2025-01-15T10:00:00Z'); // "15 ene 2025 a las 10:00"
-
-// Solo hora
-formatTime('2025-01-15T10:00:00Z'); // "10:00"
-
-// Tiempo hasta evento
-getTimeUntilEvent('2025-01-15T10:00:00Z'); // "En 3 días"
-
-// Duración
-formatDuration(120); // "2 horas"
-
-// Tipo de evento
-getEventTypeName('academic'); // "Académico"
-
-// Nombre completo
-formatFullName('Juan', 'Pérez'); // "Juan Pérez"
-
-// Iniciales
-getInitials('Juan', 'Pérez'); // "JP"
-
-// Truncar texto
-truncateText('Texto muy largo...', 10); // "Texto muy..."
-```
-
----
-
-## ⚠️ Configuración Importante
-
-### **Cambiar la URL del Backend**
-
-Edita `src/constants/config.ts` y cambia la IP por la de tu computadora:
-
-```typescript
-export const API_BASE_URL = __DEV__ 
-  ? 'http://TU_IP_LOCAL:3001/api'  // ⚠️ CAMBIA ESTO
-  : 'https://tu-api-produccion.com/api';
-```
-
-**Para encontrar tu IP:**
-- **Windows:** Abre CMD y ejecuta `ipconfig` → Busca "Dirección IPv4"
-- **Mac/Linux:** Abre Terminal y ejecuta `ifconfig` → Busca "inet"
-
----
-
-## 🎯 Características de la Configuración
-
-### **Interceptores de Axios**
-
-- ✅ **Agrega automáticamente el token JWT** a todas las peticiones
-- ✅ **Log de peticiones y respuestas** en modo desarrollo
-- ✅ **Manejo automático de errores** con mensajes amigables
-- ✅ **Timeout de 10 segundos** por petición
-
-### **Persistencia con AsyncStorage**
-
-- ✅ **Guarda token y usuario** automáticamente al hacer login
-- ✅ **Recupera datos al abrir la app** para mantener sesión
-- ✅ **Limpia datos al hacer logout**
-
-### **Validaciones Robustas**
-
-- ✅ **Email:** Formato válido
-- ✅ **Contraseña:** Min 8 caracteres, mayúscula, minúscula, número
-- ✅ **Nombre:** Solo letras y espacios
-- ✅ **Código:** 6 dígitos numéricos
-
----
-
-## 📚 Próximos Pasos
-
-1. ✅ ~~Configurar servicios API~~ (COMPLETADO)
-2. ✅ ~~Crear tipos TypeScript~~ (COMPLETADO)
-3. ⏳ Implementar AuthContext
-4. ⏳ Crear componentes reutilizables
-5. ⏳ Implementar pantallas de autenticación
-6. ⏳ Implementar dashboard
-
----
-
-## 💡 Ejemplo de Uso Completo
-
-```typescript
-import { authService } from '@/src/services';
-import { validateEmail, validatePassword } from '@/src/utils';
-
-// En tu componente de Login
-const handleLogin = async () => {
-  // Validar
-  const emailValidation = validateEmail(email);
-  if (!emailValidation.isValid) {
-    Alert.alert('Error', emailValidation.error);
-    return;
-  }
-
-  const passwordValidation = validatePassword(password);
-  if (!passwordValidation.isValid) {
-    Alert.alert('Error', passwordValidation.error);
-    return;
-  }
-
-  // Hacer login
-  const result = await authService.login({ email, password });
-  
-  if (result.success) {
-    // ✅ Token y usuario ya están guardados automáticamente
-    navigation.navigate('Dashboard');
-  } else {
-    Alert.alert('Error', result.message);
-  }
-};
-```
-
----
-
-## 🎉 ¡Todo listo para continuar!
-
-La base de servicios API está completa y lista para ser usada en los componentes y pantallas.
-
+## 🔒 Buenas Prácticas de Desarrollo en `src/`
+
+1. **Importaciones Centralizadas**: Emplear los archivos barrel (`index.ts`) para importar componentes, utilidades, servicios o contextos:
+   ```typescript
+   import { Button, Input, IOSAlert } from '@/src/components';
+   import { useAuth, useTheme, useToast } from '@/src/hooks';
+   import { eventService, registrationService } from '@/src/services';
+   import { formatDate, validateEmail } from '@/src/utils';
+   ```
+2. **Cero Secretos Hardcodeados**: Ninguna API key ni credencial sensible debe escribirse en el código fuente. Las configuraciones de red dinámicas se definen a través de `src/constants/config.ts` o variables de entorno.
+3. **Manejo Resiliente de Errores**: Todo consumo de red debe estar protegido con bloques `try/catch` y notificar estados al usuario mediante `Toast` o `IOSAlert`.
